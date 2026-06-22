@@ -1336,30 +1336,41 @@ let _cacheLoaded = false;
 async function ensureCache() {
   if(_cacheLoaded) return;
   showLoading('데이터 불러오는 중...');
+
+  // 10초 타임아웃 — 무한 로딩 방지
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('timeout')), 10000)
+  );
+
   try {
-    // 챕터 데이터
-    const chapDoc = await db.collection('users').doc(USER_ID)
-      .collection('data').doc('chapters').get();
-    _cache = chapDoc.exists ? chapDoc.data() : {};
-
-    // 계획
-    const planDoc = await db.collection('users').doc(USER_ID)
-      .collection('data').doc('plan').get();
-    _planCache = planDoc.exists ? planDoc.data().plan || null : null;
-
-    // 범위 기록
-    const rangeDoc = await db.collection('users').doc(USER_ID)
-      .collection('data').doc('rangeHistory').get();
-    _rangeCache = rangeDoc.exists ? rangeDoc.data().list || [] : [];
-
-    _cacheLoaded = true;
+    await Promise.race([
+      (async () => {
+        const [chapDoc, planDoc, rangeDoc] = await Promise.all([
+          db.collection('users').doc(USER_ID).collection('data').doc('chapters').get(),
+          db.collection('users').doc(USER_ID).collection('data').doc('plan').get(),
+          db.collection('users').doc(USER_ID).collection('data').doc('rangeHistory').get()
+        ]);
+        _cache      = chapDoc.exists  ? chapDoc.data()         : {};
+        _planCache  = planDoc.exists  ? planDoc.data().plan || null : null;
+        _rangeCache = rangeDoc.exists ? rangeDoc.data().list || [] : [];
+        _cacheLoaded = true;
+      })(),
+      timeout
+    ]);
   } catch(e) {
     console.error('Firebase 로드 오류:', e);
-    showToast('⚠️ 데이터 로드 실패. 오프라인 모드로 전환');
     _cache = {};
     _planCache = null;
     _rangeCache = [];
     _cacheLoaded = true;
+    // hideLoading 먼저, toast는 그 다음
+    hideLoading();
+    setTimeout(() => showToast(
+      e.message === 'timeout'
+        ? '⚠️ 연결 시간 초과. 오프라인 모드로 실행'
+        : '⚠️ 데이터 로드 실패. 오프라인 모드로 실행'
+    ), 100);
+    return;
   }
   hideLoading();
 }
