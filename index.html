@@ -1163,22 +1163,32 @@
   <div class="modal-sheet">
     <div class="modal-handle"></div>
     <div class="modal-title" id="memoModalTitle"></div>
-    <div class="modal-check-row" onclick="toggleReadStatus()" id="checkRow">
-      <div class="check-toggle" id="readToggle"></div>
-      <div>
-        <div class="check-label">읽음 완료</div>
-        <div class="date-read-display" id="readDateDisplay"></div>
-      </div>
+
+    <!-- 현재 읽음 상태 표시 -->
+    <div id="readStatusBadge" style="margin-bottom:14px"></div>
+
+    <!-- 읽음/미완료 액션 버튼 (항상 둘 다 표시) -->
+    <div style="display:flex;gap:8px;margin-bottom:18px">
+      <button id="btnMarkRead" onclick="setReadStatus(true)"
+        style="flex:1;padding:12px;border-radius:10px;border:2px solid var(--check);
+        background:white;font-family:'Noto Sans KR',sans-serif;font-size:0.9rem;
+        font-weight:600;color:var(--check);cursor:pointer;transition:all 0.18s">
+        ✅ 읽음 완료
+      </button>
+      <button id="btnMarkUnread" onclick="setReadStatus(false)"
+        style="flex:1;padding:12px;border-radius:10px;border:2px solid #f59e0b;
+        background:white;font-family:'Noto Sans KR',sans-serif;font-size:0.9rem;
+        font-weight:600;color:#92400e;cursor:pointer;transition:all 0.18s">
+        ↩️ 미완료
+      </button>
     </div>
+
     <div class="memo-label">✏️ 묵상 메모</div>
     <textarea class="memo-textarea" id="memoText" placeholder="이 장을 읽고 느낀 점이나 인상적인 구절을 적어보세요..." maxlength="500"></textarea>
     <div class="memo-char"><span id="memoCharCount">0</span>/500</div>
     <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeModal()">취소</button>
-      <button class="btn-unread" id="btnUnread" onclick="markUnreadAndSave()" style="display:none">
-        ↩️ 미완료로
-      </button>
-      <button class="btn-save" onclick="saveChapterData()">저장하기</button>
+      <button class="btn-cancel" onclick="closeModal()">닫기</button>
+      <button class="btn-save" onclick="saveMemoOnly()">메모 저장</button>
     </div>
   </div>
 </div>
@@ -1764,64 +1774,74 @@ function openMemoModal(bookId, ch) {
   const cd = getChapterData(bookId, ch);
 
   document.getElementById('memoModalTitle').textContent = `${book.name} ${ch}장`;
-  const toggle = document.getElementById('readToggle');
-  toggle.className = 'check-toggle' + (cd.read ? ' on' : '');
-  document.getElementById('readDateDisplay').textContent = cd.read && cd.date ? `읽은 날짜: ${cd.date}` : '아직 읽지 않음';
   document.getElementById('memoText').value = cd.memo || '';
   document.getElementById('memoCharCount').textContent = (cd.memo||'').length;
-  // 이미 읽은 장이면 미완료 버튼 표시
-  const btnUnread = document.getElementById('btnUnread');
-  if(btnUnread) btnUnread.style.display = cd.read ? 'block' : 'none';
+  updateReadStatusUI(cd.read, cd.date);
   document.getElementById('memoModal').classList.add('open');
 }
 
-function toggleReadStatus() {
-  const toggle = document.getElementById('readToggle');
-  const isOn = toggle.classList.toggle('on');
-  const dateEl = document.getElementById('readDateDisplay');
-  if(isOn) {
-    const today = new Date().toISOString().slice(0,10);
-    dateEl.textContent = `읽은 날짜: ${today}`;
+function updateReadStatusUI(isRead, date) {
+  const badge = document.getElementById('readStatusBadge');
+  const btnRead = document.getElementById('btnMarkRead');
+  const btnUnread = document.getElementById('btnMarkUnread');
+  if(isRead) {
+    badge.innerHTML = `<div style="background:#f0fdf4;border:1.5px solid var(--check);border-radius:10px;
+      padding:10px 14px;font-size:0.82rem;color:#166534;display:flex;align-items:center;gap:8px">
+      ✅ <span>읽음 완료${date ? ' · ' + date : ''}</span></div>`;
+    btnRead.style.background = 'var(--check)';
+    btnRead.style.color = 'white';
+    btnUnread.style.background = 'white';
+    btnUnread.style.color = '#92400e';
   } else {
-    dateEl.textContent = '아직 읽지 않음';
+    badge.innerHTML = `<div style="background:#fef9f0;border:1.5px solid #f59e0b;border-radius:10px;
+      padding:10px 14px;font-size:0.82rem;color:#92400e;display:flex;align-items:center;gap:8px">
+      📖 <span>아직 읽지 않은 장이에요</span></div>`;
+    btnRead.style.background = 'white';
+    btnRead.style.color = 'var(--check)';
+    btnUnread.style.background = '#fef3c7';
+    btnUnread.style.color = '#92400e';
   }
 }
 
-function saveChapterData() {
-  const isRead = document.getElementById('readToggle').classList.contains('on');
+function setReadStatus(markRead) {
   const memo = document.getElementById('memoText').value.trim();
+  const existing = getChapterData(modalBook, modalChapter);
   const today = new Date().toISOString().slice(0,10);
+  setChapterData(modalBook, modalChapter, {
+    read: markRead,
+    date: markRead ? (existing.read && existing.date ? existing.date : today) : null,
+    memo: memo || existing.memo || ''
+  });
+  const cd = getChapterData(modalBook, modalChapter);
+  updateReadStatusUI(cd.read, cd.date);
+  renderChapters();
+  updateHeaderProgress();
+  showToast(markRead ? '✅ 읽음 완료로 표시했어요!' : '↩️ 미완료로 변경했어요');
+}
+
+function saveMemoOnly() {
+  const memo = document.getElementById('memoText').value.trim();
   const existing = getChapterData(modalBook, modalChapter);
   setChapterData(modalBook, modalChapter, {
-    read: isRead,
-    date: isRead ? (existing.read && existing.date ? existing.date : today) : null,
+    read: existing.read,
+    date: existing.date,
     memo: memo
   });
   closeModal();
   renderChapters();
-  updateHeaderProgress();
-  showToast(isRead ? '✅ 읽음으로 표시했어요!' : '📖 읽지 않음으로 변경했어요');
+  showToast('✏️ 메모를 저장했어요');
 }
+
+
+
+
 
 function closeModal() {
   document.getElementById('memoModal').classList.remove('open');
   modalBook = null; modalChapter = null;
 }
 
-// 미완료로 즉시 변경 (메모는 유지)
-function markUnreadAndSave() {
-  const memo = document.getElementById('memoText').value.trim();
-  const existing = getChapterData(modalBook, modalChapter);
-  setChapterData(modalBook, modalChapter, {
-    read: false,
-    date: null,
-    memo: memo || existing.memo || ''
-  });
-  closeModal();
-  renderChapters();
-  updateHeaderProgress();
-  showToast('↩️ 미완료로 변경했어요');
-}
+
 
 document.getElementById('memoText').addEventListener('input', function() {
   document.getElementById('memoCharCount').textContent = this.value.length;
