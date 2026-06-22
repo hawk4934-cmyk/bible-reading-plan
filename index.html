@@ -930,6 +930,18 @@
   </nav>
 </header>
 
+<!-- 성경 탭 필터바 (헤더 바로 아래 고정) -->
+<div id="bibleFilterBar" style="display:none;position:sticky;top:0;z-index:90;background:white;
+  border-bottom:1px solid var(--cream-dark);padding:10px 16px;overflow-x:auto;
+  box-shadow:0 2px 8px rgba(44,74,110,0.08);">
+  <div style="display:flex;gap:8px;min-width:max-content">
+    <button class="filter-btn active" onclick="setBibleFilter('all',this)" id="filterAll">전체</button>
+    <button class="filter-btn" onclick="setBibleFilter('read',this)" id="filterRead">✅ 읽음</button>
+    <button class="filter-btn" onclick="setBibleFilter('unread',this)" id="filterUnread">📖 미완료</button>
+    <button class="filter-btn" onclick="setBibleFilter('inprogress',this)" id="filterInprogress">🟡 읽는 중</button>
+  </div>
+</div>
+
 <main class="main-content">
 
   <!-- ── 홈 페이지 ── -->
@@ -984,13 +996,6 @@
   <!-- ── 성경 목록 페이지 ── -->
   <div class="page" id="page-bible">
     <div class="bible-list-page" id="bibleListView">
-      <!-- 필터 바 -->
-      <div style="display:flex;gap:8px;padding:12px 0 4px;position:sticky;top:0;background:var(--cream);z-index:10;margin-bottom:4px">
-        <button class="filter-btn active" onclick="setBibleFilter('all',this)" id="filterAll">전체</button>
-        <button class="filter-btn" onclick="setBibleFilter('read',this)" id="filterRead">✅ 읽음</button>
-        <button class="filter-btn" onclick="setBibleFilter('unread',this)" id="filterUnread">📖 미완료</button>
-        <button class="filter-btn" onclick="setBibleFilter('inprogress',this)" id="filterInprogress">🟡 읽는 중</button>
-      </div>
       <div id="bibleListContent"><!-- JS로 생성 --></div>
     </div>
     <div class="chapter-page" id="chapterView" style="display:none">
@@ -1487,6 +1492,10 @@ function showPage(name, btn) {
   document.getElementById('page-'+name).classList.add('active');
   btn.classList.add('active');
 
+  // 필터바: 성경 탭일 때만 표시, 장 뷰에서는 숨김
+  const filterBar = document.getElementById('bibleFilterBar');
+  if(filterBar) filterBar.style.display = (name==='bible') ? 'block' : 'none';
+
   if(name==='home') renderHome();
   if(name==='bible') renderBibleList();
   if(name==='plan') renderPlan();
@@ -1658,6 +1667,8 @@ function openBook(bookId) {
   currentBook = ALL_BOOKS.find(b=>b.id===bookId);
   document.getElementById('bibleListView').style.display='none';
   document.getElementById('chapterView').style.display='block';
+  const fb = document.getElementById('bibleFilterBar');
+  if(fb) fb.style.display='none';
   document.getElementById('chapterBookTitle').textContent = currentBook.name;
   document.getElementById('chapterBookSub').textContent =
     (currentBook.testament==='ot'?'히브리어 성경':'그리스어 성경') + ' · ' + currentBook.chapters + '장';
@@ -1667,6 +1678,8 @@ function openBook(bookId) {
 function closeChapterView() {
   document.getElementById('bibleListView').style.display='block';
   document.getElementById('chapterView').style.display='none';
+  const fb = document.getElementById('bibleFilterBar');
+  if(fb) fb.style.display='block';
   renderBibleList();
   updateHeaderProgress();
 }
