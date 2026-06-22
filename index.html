@@ -1,0 +1,1982 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#2C4A6E">
+<title>성서읽기 계획표</title>
+<!-- Firebase CDN (compat) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Serif+KR:wght@400;600&display=swap');
+
+  :root {
+    --navy: #2C4A6E;
+    --navy-dark: #1a2f45;
+    --navy-light: #3d6494;
+    --gold: #C9A84C;
+    --gold-light: #e8c97a;
+    --cream: #F8F4EC;
+    --cream-dark: #EDE8DC;
+    --text: #2a2a2a;
+    --text-muted: #6b7280;
+    --check: #4CAF50;
+    --white: #ffffff;
+    --shadow: 0 2px 12px rgba(44,74,110,0.12);
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--cream);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Header ── */
+  .app-header {
+    background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 60%, var(--navy-light) 100%);
+    color: white;
+    padding: 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.25);
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+  }
+  .app-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .app-title span { font-size: 1.4rem; }
+  .header-actions { display: flex; gap: 8px; }
+  .icon-btn {
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: white;
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.1rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+  }
+  .icon-btn:hover { background: rgba(255,255,255,0.28); }
+
+  /* Progress bar in header */
+  .header-progress {
+    padding: 0 20px 14px;
+  }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.72rem;
+    color: rgba(255,255,255,0.75);
+    margin-bottom: 5px;
+  }
+  .progress-track {
+    height: 5px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold), var(--gold-light));
+    border-radius: 99px;
+    transition: width 0.5s ease;
+  }
+
+  /* ── Nav Tabs ── */
+  .nav-tabs {
+    display: flex;
+    background: var(--navy-dark);
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+  .nav-tab {
+    flex: 1;
+    padding: 10px 6px;
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.55);
+    font-size: 0.72rem;
+    font-family: 'Noto Sans KR', sans-serif;
+    cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    transition: color 0.2s, background 0.2s;
+    border-bottom: 2px solid transparent;
+  }
+  .nav-tab .tab-icon { font-size: 1.15rem; }
+  .nav-tab.active {
+    color: var(--gold-light);
+    border-bottom-color: var(--gold);
+    background: rgba(255,255,255,0.05);
+  }
+
+  /* ── Main Content ── */
+  .main-content { padding: 0; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── 홈 페이지 ── */
+  .home-section { padding: 20px; }
+
+  .today-card {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+    color: white;
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .today-label {
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.65);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .today-date {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .plan-info {
+    background: rgba(255,255,255,0.12);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .plan-info-title {
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 2px;
+  }
+  .plan-info-text {
+    font-size: 0.95rem;
+    font-weight: 500;
+  }
+  .plan-no-active {
+    text-align: center;
+    color: rgba(255,255,255,0.6);
+    font-size: 0.85rem;
+    padding: 4px 0;
+  }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .stat-card {
+    background: white;
+    border-radius: var(--radius);
+    padding: 14px 10px;
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+  .stat-num {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--navy);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .stat-label { font-size: 0.68rem; color: var(--text-muted); }
+
+  .section-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* 히브리어/그리스어 성경 진행률 */
+  .testament-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .testament-card {
+    background: white;
+    border-radius: var(--radius);
+    padding: 14px;
+    box-shadow: var(--shadow);
+  }
+  .testament-name {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--navy);
+    margin-bottom: 8px;
+  }
+  .testament-pct {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--navy);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .mini-progress {
+    height: 4px;
+    background: var(--cream-dark);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .mini-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 0.5s;
+  }
+  .ot-fill { background: linear-gradient(90deg, var(--navy), var(--navy-light)); }
+  .nt-fill { background: linear-gradient(90deg, var(--gold), var(--gold-light)); }
+
+  /* 최근 읽은 기록 */
+  .recent-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  .recent-item {
+    background: white;
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 1px 6px rgba(44,74,110,0.08);
+  }
+  .recent-icon {
+    width: 36px; height: 36px;
+    background: var(--cream);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+  }
+  .recent-text { flex: 1; min-width: 0; }
+  .recent-book { font-size: 0.88rem; font-weight: 500; color: var(--navy); }
+  .recent-date { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+  .recent-memo { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ── 성경 목록 ── */
+  .bible-list-page { padding: 16px; }
+
+  .testament-section { margin-bottom: 20px; }
+  .testament-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    background: var(--navy);
+    color: white;
+    border-radius: 8px;
+  }
+  .testament-header-name {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    flex: 1;
+  }
+  .testament-header-count { font-size: 0.72rem; color: rgba(255,255,255,0.65); }
+
+  .category-group { margin-bottom: 12px; }
+  .category-label {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    padding-left: 4px;
+  }
+  .book-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .book-btn {
+    background: white;
+    border: 1.5px solid var(--cream-dark);
+    border-radius: 8px;
+    padding: 10px 4px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.18s;
+    position: relative;
+    box-shadow: 0 1px 4px rgba(44,74,110,0.07);
+  }
+  .book-btn:hover { border-color: var(--navy-light); transform: translateY(-1px); }
+  .book-btn.completed { background: var(--navy); border-color: var(--navy); color: white; }
+  .book-btn.in-progress { border-color: var(--gold); background: #fffdf5; }
+  .book-name { font-size: 0.75rem; font-weight: 500; line-height: 1.2; }
+  .book-progress-dot {
+    position: absolute;
+    top: 4px; right: 4px;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--gold);
+  }
+  .book-btn.completed .book-progress-dot { background: rgba(255,255,255,0.6); }
+
+  /* ── 장 목록 ── */
+  .chapter-page { padding: 16px; }
+
+  .chapter-back-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .back-btn {
+    background: white;
+    border: 1.5px solid var(--cream-dark);
+    border-radius: 8px;
+    width: 36px; height: 36px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+    box-shadow: var(--shadow);
+  }
+  .chapter-book-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--navy);
+  }
+  .chapter-book-sub { font-size: 0.72rem; color: var(--text-muted); }
+
+  .chapter-book-progress {
+    background: white;
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .cbp-circle {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: conic-gradient(var(--navy) 0%, var(--cream-dark) 0%);
+    flex-shrink: 0;
+    position: relative;
+  }
+  .cbp-inner {
+    position: absolute;
+    width: 36px; height: 36px;
+    background: white;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--navy);
+  }
+  .cbp-text { flex: 1; }
+  .cbp-label { font-size: 0.72rem; color: var(--text-muted); }
+  .cbp-value { font-size: 0.95rem; font-weight: 500; color: var(--navy); margin-top: 2px; }
+
+  .chapter-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .ch-btn {
+    aspect-ratio: 1;
+    border-radius: 10px;
+    border: 1.5px solid var(--cream-dark);
+    background: white;
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--text);
+    position: relative;
+    transition: all 0.18s;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px;
+    box-shadow: 0 1px 4px rgba(44,74,110,0.07);
+  }
+  .ch-btn:hover { border-color: var(--navy-light); transform: translateY(-1px); }
+  .ch-btn.read {
+    background: var(--navy);
+    border-color: var(--navy);
+    color: white;
+  }
+  .ch-btn.has-memo::after {
+    content: '✏️';
+    font-size: 0.55rem;
+    position: absolute;
+    top: 2px; right: 3px;
+    line-height: 1;
+  }
+  .ch-btn.read.has-memo::after { content: '✏️'; filter: brightness(0) invert(1); opacity: 0.7; }
+  .ch-read-date { font-size: 0.5rem; color: rgba(255,255,255,0.7); line-height: 1; }
+
+  /* ── 메모 모달 ── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 500;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-sheet {
+    background: white;
+    border-radius: 20px 20px 0 0;
+    padding: 24px 20px 32px;
+    width: 100%;
+    max-width: 600px;
+    max-height: 85vh;
+    overflow-y: auto;
+    animation: slideUp 0.28s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+  .modal-handle {
+    width: 36px; height: 4px;
+    background: var(--cream-dark);
+    border-radius: 99px;
+    margin: 0 auto 20px;
+  }
+  .modal-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 16px;
+  }
+
+  .modal-check-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    background: var(--cream);
+    border-radius: 10px;
+    margin-bottom: 16px;
+    cursor: pointer;
+  }
+  .check-toggle {
+    width: 44px; height: 24px;
+    background: var(--cream-dark);
+    border-radius: 99px;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .check-toggle.on { background: var(--check); }
+  .check-toggle::after {
+    content: '';
+    position: absolute;
+    width: 18px; height: 18px;
+    background: white;
+    border-radius: 50%;
+    top: 3px; left: 3px;
+    transition: left 0.2s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  }
+  .check-toggle.on::after { left: 23px; }
+  .check-label { font-size: 0.9rem; font-weight: 500; }
+
+  .date-read-display {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .memo-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--navy);
+    margin-bottom: 8px;
+  }
+  .memo-textarea {
+    width: 100%;
+    height: 120px;
+    border: 1.5px solid var(--cream-dark);
+    border-radius: 10px;
+    padding: 12px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.88rem;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .memo-textarea:focus { border-color: var(--navy-light); }
+  .memo-char { font-size: 0.7rem; color: var(--text-muted); text-align: right; margin-top: 4px; }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  .btn-cancel {
+    flex: 1;
+    padding: 13px;
+    border: 1.5px solid var(--cream-dark);
+    background: white;
+    border-radius: 10px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.9rem;
+    cursor: pointer;
+    color: var(--text-muted);
+  }
+  .btn-save {
+    flex: 2;
+    padding: 13px;
+    background: var(--navy);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-save:hover { background: var(--navy-light); }
+
+  /* ── 계획 페이지 ── */
+  .plan-page { padding: 16px; }
+
+  .plan-type-selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .plan-type-btn {
+    background: white;
+    border: 1.5px solid var(--cream-dark);
+    border-radius: 10px;
+    padding: 14px 8px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.18s;
+    box-shadow: var(--shadow);
+  }
+  .plan-type-btn.active { background: var(--navy); border-color: var(--navy); color: white; }
+  .plan-type-icon { font-size: 1.4rem; margin-bottom: 6px; }
+  .plan-type-name { font-size: 0.75rem; font-weight: 500; line-height: 1.3; }
+
+  .plan-card {
+    background: white;
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+    margin-bottom: 14px;
+  }
+  .plan-card-title {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--navy);
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .form-row { margin-bottom: 12px; }
+  .form-label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 5px; display: block; }
+  .form-input, .form-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid var(--cream-dark);
+    border-radius: 8px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.88rem;
+    outline: none;
+    background: var(--cream);
+    color: var(--text);
+    transition: border-color 0.2s;
+  }
+  .form-input:focus, .form-select:focus { border-color: var(--navy-light); background: white; }
+
+  .plan-apply-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--navy), var(--navy-light));
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .plan-apply-btn:hover { opacity: 0.9; }
+
+  .active-plan-display {
+    background: linear-gradient(135deg, var(--navy), var(--navy-light));
+    color: white;
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  .apd-label { font-size: 0.7rem; color: rgba(255,255,255,0.65); margin-bottom: 4px; }
+  .apd-title { font-family: 'Noto Serif KR', serif; font-size: 1rem; font-weight: 600; margin-bottom: 10px; }
+  .apd-stats {
+    display: flex;
+    gap: 8px;
+  }
+  .apd-stat {
+    flex: 1;
+    background: rgba(255,255,255,0.12);
+    border-radius: 8px;
+    padding: 8px 10px;
+    text-align: center;
+  }
+  .apd-stat-num { font-size: 1.1rem; font-weight: 700; }
+  .apd-stat-label { font-size: 0.65rem; color: rgba(255,255,255,0.65); margin-top: 2px; }
+
+  .plan-cancel-btn {
+    width: 100%;
+    padding: 11px;
+    background: rgba(255,255,255,0.15);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 8px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    margin-top: 12px;
+  }
+
+  /* ── 통계 페이지 ── */
+  .stats-page { padding: 16px; }
+
+  .stats-overview {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .stats-big-card {
+    background: white;
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow);
+    text-align: center;
+  }
+  .stats-big-num {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--navy);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .stats-big-sub { font-size: 0.7rem; color: var(--text-muted); }
+  .streak-card {
+    background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
+    color: var(--navy-dark);
+  }
+  .streak-card .stats-big-num { color: var(--navy-dark); }
+
+  /* 달력 뷰 */
+  .cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .cal-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--navy);
+  }
+  .cal-nav {
+    background: white;
+    border: 1.5px solid var(--cream-dark);
+    border-radius: 6px;
+    width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+  .calendar-card {
+    background: white;
+    border-radius: var(--radius);
+    padding: 14px;
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+  }
+  .cal-dow {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    margin-bottom: 6px;
+  }
+  .cal-dow span {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    padding: 4px 0;
+  }
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+  }
+  .cal-day {
+    aspect-ratio: 1;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    position: relative;
+  }
+  .cal-day.today { font-weight: 700; color: var(--navy); }
+  .cal-day.has-read {
+    background: var(--navy);
+    color: white;
+    font-weight: 500;
+  }
+  .cal-day.today.has-read { background: var(--gold); color: var(--navy-dark); }
+  .cal-day.empty { opacity: 0; pointer-events: none; }
+  .cal-day-count {
+    position: absolute;
+    bottom: 0px;
+    font-size: 0.45rem;
+    color: rgba(255,255,255,0.8);
+    line-height: 1;
+  }
+
+  /* 성경별 진행률 바 차트 */
+  .book-bars { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+  .book-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: white;
+    border-radius: 8px;
+    padding: 8px 12px;
+    box-shadow: 0 1px 4px rgba(44,74,110,0.07);
+  }
+  .book-bar-name { font-size: 0.75rem; width: 54px; flex-shrink: 0; color: var(--navy); font-weight: 500; }
+  .book-bar-track { flex: 1; height: 6px; background: var(--cream-dark); border-radius: 99px; overflow: hidden; }
+  .book-bar-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--navy), var(--navy-light)); }
+  .book-bar-pct { font-size: 0.7rem; color: var(--text-muted); width: 32px; text-align: right; flex-shrink: 0; }
+
+  /* 전체 리셋 확인 */
+  .danger-zone {
+    background: white;
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+    border-left: 3px solid #ef4444;
+  }
+  .danger-title { font-size: 0.8rem; font-weight: 500; color: #ef4444; margin-bottom: 8px; }
+  .btn-danger {
+    padding: 9px 16px;
+    background: #fef2f2;
+    border: 1.5px solid #fca5a5;
+    border-radius: 8px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.8rem;
+    color: #ef4444;
+    cursor: pointer;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 80px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--navy-dark);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 99px;
+    font-size: 0.82rem;
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 999;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .empty-state {
+    text-align: center;
+    padding: 32px 16px;
+    color: var(--text-muted);
+  }
+  .empty-icon { font-size: 2.5rem; margin-bottom: 10px; }
+  .empty-text { font-size: 0.85rem; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="app-header">
+  <div class="header-top">
+    <div class="app-title"><span>📖</span> 성서읽기 계획표</div>
+    <div class="header-actions">
+      <button class="icon-btn" onclick="showSearchModal()" title="검색">🔍</button>
+    </div>
+  </div>
+  <div class="header-progress">
+    <div class="progress-label">
+      <span>전체 진행률</span>
+      <span id="totalPct">0%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="totalBar" style="width:0%"></div>
+    </div>
+  </div>
+  <nav class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('home',this)">
+      <span class="tab-icon">🏠</span>홈
+    </button>
+    <button class="nav-tab" onclick="showPage('bible',this)">
+      <span class="tab-icon">📚</span>성경
+    </button>
+    <button class="nav-tab" onclick="showPage('plan',this)">
+      <span class="tab-icon">📅</span>계획
+    </button>
+    <button class="nav-tab" onclick="showPage('stats',this)">
+      <span class="tab-icon">📊</span>통계
+    </button>
+  </nav>
+</header>
+
+<main class="main-content">
+
+  <!-- ── 홈 페이지 ── -->
+  <div class="page active" id="page-home">
+    <div class="home-section">
+      <div class="today-card">
+        <div class="today-label">TODAY</div>
+        <div class="today-date" id="todayDate"></div>
+        <div class="plan-info" id="todayPlanInfo">
+          <div class="plan-no-active">활성 계획이 없습니다. 계획 탭에서 설정해보세요 ✨</div>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-num" id="statTotalChapters">0</div>
+          <div class="stat-label">읽은 장</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="statStreak">0</div>
+          <div class="stat-label">연속 일수</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="statMemos">0</div>
+          <div class="stat-label">메모</div>
+        </div>
+      </div>
+
+      <div class="testament-cards">
+        <div class="testament-card">
+          <div class="testament-name">📜 히브리어 성경</div>
+          <div class="testament-pct" id="otPct">0%</div>
+          <div class="mini-progress"><div class="mini-fill ot-fill" id="otBar" style="width:0%"></div></div>
+        </div>
+        <div class="testament-card">
+          <div class="testament-name">✝️ 그리스어 성경</div>
+          <div class="testament-pct" id="ntPct">0%</div>
+          <div class="mini-progress"><div class="mini-fill nt-fill" id="ntBar" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <div class="section-title">📝 최근 읽은 기록</div>
+      <div class="recent-list" id="recentList">
+        <div class="empty-state">
+          <div class="empty-icon">📖</div>
+          <div class="empty-text">아직 읽은 기록이 없어요.<br>성경 탭에서 시작해보세요!</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 성경 목록 페이지 ── -->
+  <div class="page" id="page-bible">
+    <div class="bible-list-page" id="bibleListView">
+      <!-- JS로 생성 -->
+    </div>
+    <div class="chapter-page" id="chapterView" style="display:none">
+      <div class="chapter-back-header">
+        <button class="back-btn" onclick="closeChapterView()">←</button>
+        <div>
+          <div class="chapter-book-title" id="chapterBookTitle"></div>
+          <div class="chapter-book-sub" id="chapterBookSub"></div>
+        </div>
+      </div>
+      <div class="chapter-book-progress" id="chapterBookProgress"></div>
+      <div class="chapter-grid" id="chapterGrid"></div>
+    </div>
+  </div>
+
+  <!-- ── 계획 페이지 ── -->
+  <div class="page" id="page-plan">
+    <div class="plan-page">
+      <div id="activePlanSection" style="display:none"></div>
+
+      <div id="planSetupSection">
+        <div class="section-title" style="margin-bottom:14px">📅 읽기 계획 설정</div>
+        <div class="plan-type-selector">
+          <button class="plan-type-btn active" onclick="selectPlanType('1year',this)">
+            <div class="plan-type-icon">🗓️</div>
+            <div class="plan-type-name">1년<br>완독</div>
+          </button>
+          <button class="plan-type-btn" onclick="selectPlanType('6month',this)">
+            <div class="plan-type-icon">⚡</div>
+            <div class="plan-type-name">6개월<br>속독</div>
+          </button>
+          <button class="plan-type-btn" onclick="selectPlanType('custom',this)">
+            <div class="plan-type-icon">✏️</div>
+            <div class="plan-type-name">직접<br>설정</div>
+          </button>
+        </div>
+
+        <div class="plan-card" id="planConfigCard">
+          <div class="plan-card-title">⚙️ 계획 세부 설정</div>
+          <div class="form-row">
+            <label class="form-label">시작 날짜</label>
+            <input type="date" class="form-input" id="planStartDate">
+          </div>
+          <div class="form-row" id="customDaysRow" style="display:none">
+            <label class="form-label">목표 기간 (일)</label>
+            <input type="number" class="form-input" id="customDays" placeholder="예: 180" min="30" max="3650">
+          </div>
+          <div class="form-row" id="dailyChaptersRow">
+            <label class="form-label">하루 읽을 장 수</label>
+            <input type="text" class="form-input" id="dailyChaptersDisplay" readonly style="background:#f5f5f5; color:#888">
+          </div>
+          <div class="form-row">
+            <label class="form-label">계획 이름 (선택)</label>
+            <input type="text" class="form-input" id="planName" placeholder="예: 2026년 완독 도전">
+          </div>
+          <button class="plan-apply-btn" onclick="applyPlan()">✅ 이 계획으로 시작하기</button>
+        </div>
+      </div>
+
+      <!-- 자유 범위 읽기 -->
+      <div style="margin-top:20px">
+        <div class="section-title" style="margin-bottom:12px">🔖 자유 범위 읽기</div>
+        <div class="plan-card">
+          <div class="plan-card-title">📌 읽을 범위 직접 지정</div>
+          <div class="form-row">
+            <label class="form-label">성경 선택</label>
+            <select class="form-select" id="freeBook" onchange="updateFreeChapters()"></select>
+          </div>
+          <div style="display:flex;gap:10px">
+            <div class="form-row" style="flex:1;margin-bottom:0">
+              <label class="form-label">시작 장</label>
+              <select class="form-select" id="freeChStart"></select>
+            </div>
+            <div class="form-row" style="flex:1;margin-bottom:0">
+              <label class="form-label">끝 장</label>
+              <select class="form-select" id="freeChEnd"></select>
+            </div>
+          </div>
+          <div style="margin-top:12px">
+            <label class="form-label">읽은 날짜</label>
+            <input type="date" class="form-input" id="freeDateInput">
+          </div>
+          <div style="margin-top:12px">
+            <label class="form-label">공통 메모 (선택)</label>
+            <textarea class="memo-textarea" id="freeMemo" placeholder="이 범위 전체에 적용할 메모를 입력하세요 (선택사항)" maxlength="300" style="height:80px"></textarea>
+          </div>
+          <div id="freeRangePreview" style="margin-top:10px;padding:10px 12px;background:var(--cream);border-radius:8px;font-size:0.8rem;color:var(--navy);display:none"></div>
+          <div style="display:flex;gap:8px;margin-top:14px">
+            <button class="plan-apply-btn" style="flex:1" onclick="applyFreeRange(true)">✅ 읽음으로 일괄 체크</button>
+            <button class="btn-cancel" style="flex:0.6;padding:13px;border-radius:10px;font-size:0.85rem;cursor:pointer" onclick="applyFreeRange(false)">↩️ 읽지 않음으로</button>
+          </div>
+        </div>
+
+        <!-- 자유범위 기록 목록 -->
+        <div class="section-title" style="margin-bottom:10px;margin-top:6px">📋 범위 읽기 기록</div>
+        <div id="freeRangeHistory" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 통계 페이지 ── -->
+  <div class="page" id="page-stats">
+    <div class="stats-page">
+      <div class="section-title" style="margin-bottom:12px">📊 읽기 통계</div>
+
+      <div class="stats-overview">
+        <div class="stats-big-card">
+          <div class="stats-big-num" id="statsTotalRead">0</div>
+          <div class="stats-big-sub">총 읽은 장</div>
+        </div>
+        <div class="stats-big-card streak-card">
+          <div class="stats-big-num" id="statsStreak">0</div>
+          <div class="stats-big-sub">🔥 연속 읽기 일수</div>
+        </div>
+        <div class="stats-big-card">
+          <div class="stats-big-num" id="statsTotalBooks">0</div>
+          <div class="stats-big-sub">완독한 성경</div>
+        </div>
+        <div class="stats-big-card">
+          <div class="stats-big-num" id="statsThisMonth">0</div>
+          <div class="stats-big-sub">이번달 읽은 장</div>
+        </div>
+      </div>
+
+      <!-- 달력 -->
+      <div class="calendar-card">
+        <div class="cal-header">
+          <button class="cal-nav" onclick="changeCalMonth(-1)">◀</button>
+          <div class="cal-title" id="calTitle"></div>
+          <button class="cal-nav" onclick="changeCalMonth(1)">▶</button>
+        </div>
+        <div class="cal-dow">
+          <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+      </div>
+
+      <!-- 성경별 진행률 상위 -->
+      <div class="section-title" style="margin-bottom:10px">📈 성경별 진행률</div>
+      <div class="book-bars" id="bookBars"></div>
+
+      <div class="danger-zone">
+        <div class="danger-title">⚠️ 데이터 초기화</div>
+        <button class="btn-danger" onclick="confirmReset()">전체 읽기 기록 초기화</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- 메모/체크 모달 -->
+<div class="modal-overlay" id="memoModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="memoModalTitle"></div>
+    <div class="modal-check-row" onclick="toggleReadStatus()" id="checkRow">
+      <div class="check-toggle" id="readToggle"></div>
+      <div>
+        <div class="check-label">읽음 완료</div>
+        <div class="date-read-display" id="readDateDisplay"></div>
+      </div>
+    </div>
+    <div class="memo-label">✏️ 묵상 메모</div>
+    <textarea class="memo-textarea" id="memoText" placeholder="이 장을 읽고 느낀 점이나 인상적인 구절을 적어보세요..." maxlength="500"></textarea>
+    <div class="memo-char"><span id="memoCharCount">0</span>/500</div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">취소</button>
+      <button class="btn-save" onclick="saveChapterData()">저장하기</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+// 성경 데이터 (66권 전체)
+// ═══════════════════════════════════════════════
+const BIBLE_DATA = {
+  ot: {
+    name: '히브리어 성경', icon: '📜',
+    categories: [
+      { name: '율법서 (모세 오경)', books: [
+        {id:'ge', name:'창세기', chapters:50},
+        {id:'ex', name:'출애굽기', chapters:40},
+        {id:'le', name:'레위기', chapters:27},
+        {id:'nu', name:'민수기', chapters:36},
+        {id:'de', name:'신명기', chapters:34},
+      ]},
+      { name: '역사서', books: [
+        {id:'jos', name:'여호수아', chapters:24},
+        {id:'jg', name:'사사기', chapters:21},
+        {id:'ru', name:'룻기', chapters:4},
+        {id:'1sa', name:'사무엘상', chapters:31},
+        {id:'2sa', name:'사무엘하', chapters:24},
+        {id:'1ki', name:'열왕기상', chapters:22},
+        {id:'2ki', name:'열왕기하', chapters:25},
+        {id:'1ch', name:'역대상', chapters:29},
+        {id:'2ch', name:'역대하', chapters:36},
+        {id:'ezr', name:'에스라', chapters:10},
+        {id:'ne', name:'느헤미야', chapters:13},
+        {id:'es', name:'에스더', chapters:10},
+      ]},
+      { name: '시가서', books: [
+        {id:'job', name:'욥기', chapters:42},
+        {id:'ps', name:'시편', chapters:150},
+        {id:'pr', name:'잠언', chapters:31},
+        {id:'ec', name:'전도서', chapters:12},
+        {id:'ca', name:'아가', chapters:8},
+      ]},
+      { name: '예언서 (대예언서)', books: [
+        {id:'isa', name:'이사야', chapters:66},
+        {id:'jer', name:'예레미야', chapters:52},
+        {id:'la', name:'예레미야애가', chapters:5},
+        {id:'eze', name:'에스겔', chapters:48},
+        {id:'da', name:'다니엘', chapters:12},
+      ]},
+      { name: '예언서 (소예언서)', books: [
+        {id:'ho', name:'호세아', chapters:14},
+        {id:'joe', name:'요엘', chapters:3},
+        {id:'am', name:'아모스', chapters:9},
+        {id:'ob', name:'오바댜', chapters:1},
+        {id:'jon', name:'요나', chapters:4},
+        {id:'mic', name:'미가', chapters:7},
+        {id:'na', name:'나훔', chapters:3},
+        {id:'hab', name:'하박국', chapters:3},
+        {id:'zep', name:'스바냐', chapters:3},
+        {id:'hag', name:'학개', chapters:2},
+        {id:'zec', name:'스가랴', chapters:14},
+        {id:'mal', name:'말라기', chapters:4},
+      ]},
+    ]
+  },
+  nt: {
+    name: '그리스어 성경', icon: '✝️',
+    categories: [
+      { name: '복음서 및 사도행전', books: [
+        {id:'mt', name:'마태복음', chapters:28},
+        {id:'mr', name:'마가복음', chapters:16},
+        {id:'lu', name:'누가복음', chapters:24},
+        {id:'joh', name:'요한복음', chapters:21},
+        {id:'ac', name:'사도행전', chapters:28},
+      ]},
+      { name: '바울 서신', books: [
+        {id:'ro', name:'로마서', chapters:16},
+        {id:'1co', name:'고린도전서', chapters:16},
+        {id:'2co', name:'고린도후서', chapters:13},
+        {id:'ga', name:'갈라디아서', chapters:6},
+        {id:'eph', name:'에베소서', chapters:6},
+        {id:'php', name:'빌립보서', chapters:4},
+        {id:'col', name:'골로새서', chapters:4},
+        {id:'1th', name:'데살로니가전서', chapters:5},
+        {id:'2th', name:'데살로니가후서', chapters:3},
+        {id:'1ti', name:'디모데전서', chapters:6},
+        {id:'2ti', name:'디모데후서', chapters:4},
+        {id:'tit', name:'디도서', chapters:3},
+        {id:'phm', name:'빌레몬서', chapters:1},
+      ]},
+      { name: '일반 서신 및 요한계시록', books: [
+        {id:'heb', name:'히브리서', chapters:13},
+        {id:'jas', name:'야고보서', chapters:5},
+        {id:'1pe', name:'베드로전서', chapters:5},
+        {id:'2pe', name:'베드로후서', chapters:3},
+        {id:'1jo', name:'요한1서', chapters:5},
+        {id:'2jo', name:'요한2서', chapters:1},
+        {id:'3jo', name:'요한3서', chapters:1},
+        {id:'jude', name:'유다서', chapters:1},
+        {id:'re', name:'요한계시록', chapters:22},
+      ]},
+    ]
+  }
+};
+
+// 전체 책 flat list
+const ALL_BOOKS = [];
+['ot','nt'].forEach(t => {
+  BIBLE_DATA[t].categories.forEach(cat => cat.books.forEach(b => {
+    ALL_BOOKS.push({...b, testament: t});
+  }));
+});
+const TOTAL_CHAPTERS = ALL_BOOKS.reduce((s,b) => s + b.chapters, 0);
+const OT_CHAPTERS = ALL_BOOKS.filter(b=>b.testament==='ot').reduce((s,b)=>s+b.chapters,0);
+const NT_CHAPTERS = ALL_BOOKS.filter(b=>b.testament==='nt').reduce((s,b)=>s+b.chapters,0);
+
+// ═══════════════════════════════════════════════
+// Firebase 설정 및 초기화
+// ═══════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyCu7emDZJXo9m2gCTcCfywxl1uRSgP-7IU",
+  authDomain: "bible-reading-plan-f994f.firebaseapp.com",
+  projectId: "bible-reading-plan-f994f",
+  storageBucket: "bible-reading-plan-f994f.firebasestorage.app",
+  messagingSenderId: "453532521901",
+  appId: "1:453532521901:web:70d9ef4516fb6660dc7d24"
+};
+
+// Firebase SDK (CDN compat)
+const _fbApp = firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// 사용자 ID: 익명 고정 (로그인 없이 기기당 1계정)
+// 향후 Auth 추가 시 여기만 교체
+const USER_ID = 'user_default';
+
+// ═══════════════════════════════════════════════
+// 로딩 오버레이
+// ═══════════════════════════════════════════════
+function showLoading(msg='불러오는 중...') {
+  let el = document.getElementById('fbLoading');
+  if(!el) {
+    el = document.createElement('div');
+    el.id = 'fbLoading';
+    el.style.cssText = `position:fixed;inset:0;background:rgba(44,74,110,0.55);z-index:9999;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px`;
+    el.innerHTML = `<div style="width:40px;height:40px;border:3px solid rgba(255,255,255,0.3);
+      border-top-color:white;border-radius:50%;animation:spin 0.8s linear infinite"></div>
+      <div style="color:white;font-size:0.88rem" id="fbLoadingMsg">${msg}</div>`;
+    document.body.appendChild(el);
+    if(!document.getElementById('fbSpinStyle')) {
+      const s = document.createElement('style');
+      s.id='fbSpinStyle';
+      s.textContent='@keyframes spin{to{transform:rotate(360deg)}}';
+      document.head.appendChild(s);
+    }
+  }
+  document.getElementById('fbLoadingMsg').textContent = msg;
+  el.style.display = 'flex';
+}
+function hideLoading() {
+  const el = document.getElementById('fbLoading');
+  if(el) el.style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════
+// Firestore 데이터 관리
+// ═══════════════════════════════════════════════
+
+// 인메모리 캐시 (Firestore 읽기 최소화)
+let _cache = null;        // 챕터 데이터 전체
+let _planCache = null;    // 계획
+let _rangeCache = null;   // 범위 기록
+let _cacheLoaded = false;
+
+// 전체 데이터 1회 로드 후 캐시
+async function ensureCache() {
+  if(_cacheLoaded) return;
+  showLoading('데이터 불러오는 중...');
+  try {
+    // 챕터 데이터
+    const chapDoc = await db.collection('users').doc(USER_ID)
+      .collection('data').doc('chapters').get();
+    _cache = chapDoc.exists ? chapDoc.data() : {};
+
+    // 계획
+    const planDoc = await db.collection('users').doc(USER_ID)
+      .collection('data').doc('plan').get();
+    _planCache = planDoc.exists ? planDoc.data().plan || null : null;
+
+    // 범위 기록
+    const rangeDoc = await db.collection('users').doc(USER_ID)
+      .collection('data').doc('rangeHistory').get();
+    _rangeCache = rangeDoc.exists ? rangeDoc.data().list || [] : [];
+
+    _cacheLoaded = true;
+  } catch(e) {
+    console.error('Firebase 로드 오류:', e);
+    showToast('⚠️ 데이터 로드 실패. 오프라인 모드로 전환');
+    _cache = {};
+    _planCache = null;
+    _rangeCache = [];
+    _cacheLoaded = true;
+  }
+  hideLoading();
+}
+
+// 챕터 데이터 저장 (debounce로 Firestore 쓰기 최소화)
+let _saveTimer = null;
+function scheduleChapterSave() {
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(async () => {
+    try {
+      await db.collection('users').doc(USER_ID)
+        .collection('data').doc('chapters').set(_cache);
+    } catch(e) { console.error('저장 오류:', e); showToast('⚠️ 저장 실패'); }
+  }, 800);
+}
+
+function loadData() { return _cache || {}; }
+function saveData(data) {
+  _cache = data;
+  scheduleChapterSave();
+}
+
+function loadPlan() { return _planCache; }
+async function savePlan(plan) {
+  _planCache = plan;
+  try {
+    await db.collection('users').doc(USER_ID)
+      .collection('data').doc('plan').set({plan});
+  } catch(e) { showToast('⚠️ 계획 저장 실패'); }
+}
+
+function loadRangeHistory() { return _rangeCache || []; }
+async function saveRangeHistory(arr) {
+  _rangeCache = arr;
+  try {
+    await db.collection('users').doc(USER_ID)
+      .collection('data').doc('rangeHistory').set({list: arr});
+  } catch(e) { showToast('⚠️ 범위 기록 저장 실패'); }
+}
+
+// key: bookId_chapterNum → {read:bool, date:string, memo:string}
+function getChapterKey(bookId, ch) { return `${bookId}_${ch}`; }
+
+function getChapterData(bookId, ch) {
+  const data = loadData();
+  return data[getChapterKey(bookId, ch)] || {read:false, date:null, memo:''};
+}
+
+function setChapterData(bookId, ch, obj) {
+  const data = loadData();
+  data[getChapterKey(bookId, ch)] = obj;
+  saveData(data);
+}
+
+// 통계 계산
+function calcStats() {
+  const data = loadData();
+  let totalRead = 0, otRead = 0, ntRead = 0, memoCount = 0;
+  const readDates = {};
+
+  ALL_BOOKS.forEach(book => {
+    let bookRead = 0;
+    for(let c=1; c<=book.chapters; c++) {
+      const cd = data[getChapterKey(book.id, c)];
+      if(cd && cd.read) {
+        totalRead++;
+        bookRead++;
+        if(book.testament === 'ot') otRead++;
+        else ntRead++;
+        if(cd.date) {
+          readDates[cd.date] = (readDates[cd.date]||0)+1;
+        }
+      }
+      if(cd && cd.memo) memoCount++;
+    }
+  });
+
+  // 연속 일수
+  const today = new Date();
+  let streak = 0;
+  for(let i=0;;i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate()-i);
+    const key = d.toISOString().slice(0,10);
+    if(readDates[key]) { streak++; }
+    else if(i > 0) break;
+    if(i > 365) break;
+  }
+
+  // 이번달
+  const ym = today.toISOString().slice(0,7);
+  const thisMonth = Object.entries(readDates).filter(([k])=>k.startsWith(ym)).reduce((s,[,v])=>s+v,0);
+
+  return {totalRead, otRead, ntRead, memoCount, streak, readDates, thisMonth};
+}
+
+function countCompletedBooks() {
+  const data = loadData();
+  return ALL_BOOKS.filter(book => {
+    for(let c=1;c<=book.chapters;c++) {
+      const cd = data[getChapterKey(book.id,c)];
+      if(!cd||!cd.read) return false;
+    }
+    return true;
+  }).length;
+}
+
+// ═══════════════════════════════════════════════
+// 페이지 네비게이션
+// ═══════════════════════════════════════════════
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  btn.classList.add('active');
+
+  if(name==='home') renderHome();
+  if(name==='bible') renderBibleList();
+  if(name==='plan') renderPlan();
+  if(name==='stats') { renderStats(); renderCalendar(); }
+
+  updateHeaderProgress();
+}
+
+function updateHeaderProgress() {
+  const {totalRead} = calcStats();
+  const pct = Math.round(totalRead/TOTAL_CHAPTERS*100);
+  document.getElementById('totalPct').textContent = pct+'%';
+  document.getElementById('totalBar').style.width = pct+'%';
+}
+
+// ═══════════════════════════════════════════════
+// 홈 렌더링
+// ═══════════════════════════════════════════════
+function renderHome() {
+  const now = new Date();
+  const days = ['일','월','화','수','목','금','토'];
+  document.getElementById('todayDate').textContent =
+    `${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 (${days[now.getDay()]})`;
+
+  const {totalRead, otRead, ntRead, memoCount, streak} = calcStats();
+  document.getElementById('statTotalChapters').textContent = totalRead;
+  document.getElementById('statStreak').textContent = streak;
+  document.getElementById('statMemos').textContent = memoCount;
+
+  const otPct = Math.round(otRead/OT_CHAPTERS*100);
+  const ntPct = Math.round(ntRead/NT_CHAPTERS*100);
+  document.getElementById('otPct').textContent = otPct+'%';
+  document.getElementById('ntPct').textContent = ntPct+'%';
+  document.getElementById('otBar').style.width = otPct+'%';
+  document.getElementById('ntBar').style.width = ntPct+'%';
+
+  // 오늘 계획 정보
+  const plan = loadPlan();
+  const planEl = document.getElementById('todayPlanInfo');
+  if(plan) {
+    const start = new Date(plan.startDate);
+    const diffDays = Math.floor((now - start)/(1000*60*60*24));
+    const endDate = new Date(start);
+    endDate.setDate(endDate.getDate()+plan.totalDays);
+    const remaining = Math.ceil((endDate-now)/(1000*60*60*24));
+    planEl.innerHTML = `
+      <div style="font-size:0.7rem;color:rgba(255,255,255,0.65);margin-bottom:2px">${plan.name||'읽기 계획'}</div>
+      <div style="font-size:0.95rem;font-weight:500">하루 목표: ${plan.dailyChapters}장</div>
+      <div style="font-size:0.72rem;color:rgba(255,255,255,0.65);margin-top:4px">진행 ${diffDays}일 · 남은 기간 ${Math.max(0,remaining)}일</div>
+    `;
+  } else {
+    planEl.innerHTML = '<div class="plan-no-active">활성 계획이 없습니다. 계획 탭에서 설정해보세요 ✨</div>';
+  }
+
+  // 최근 기록
+  const data = loadData();
+  const recent = [];
+  ALL_BOOKS.forEach(book => {
+    for(let c=1;c<=book.chapters;c++) {
+      const cd = data[getChapterKey(book.id,c)];
+      if(cd&&cd.read&&cd.date) {
+        recent.push({book, chapter:c, date:cd.date, memo:cd.memo});
+      }
+    }
+  });
+  recent.sort((a,b) => b.date.localeCompare(a.date));
+  const top8 = recent.slice(0,8);
+  const el = document.getElementById('recentList');
+  if(top8.length===0) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📖</div><div class="empty-text">아직 읽은 기록이 없어요.<br>성경 탭에서 시작해보세요!</div></div>`;
+  } else {
+    el.innerHTML = top8.map(r => `
+      <div class="recent-item">
+        <div class="recent-icon">${r.book.testament==='ot'?'📜':'✝️'}</div>
+        <div class="recent-text">
+          <div class="recent-book">${r.book.name} ${r.chapter}장</div>
+          <div class="recent-date">${r.date}</div>
+          ${r.memo ? `<div class="recent-memo">✏️ ${r.memo}</div>` : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+}
+
+// ═══════════════════════════════════════════════
+// 성경 목록 렌더링
+// ═══════════════════════════════════════════════
+function renderBibleList() {
+  const view = document.getElementById('bibleListView');
+  const data = loadData();
+
+  function getBookProgress(book) {
+    let read = 0;
+    for(let c=1;c<=book.chapters;c++) {
+      const cd = data[getChapterKey(book.id,c)];
+      if(cd&&cd.read) read++;
+    }
+    return read;
+  }
+
+  let html = '';
+  ['ot','nt'].forEach(t => {
+    const td = BIBLE_DATA[t];
+    const tTotal = td.categories.flatMap(c=>c.books).reduce((s,b)=>s+b.chapters,0);
+    const tRead = td.categories.flatMap(c=>c.books).reduce((s,b)=>s+getBookProgress(b),0);
+    const tPct = Math.round(tRead/tTotal*100);
+    html += `<div class="testament-section">
+      <div class="testament-header">
+        <span>${td.icon}</span>
+        <span class="testament-header-name">${td.name}</span>
+        <span class="testament-header-count">${tRead}/${tTotal}장 (${tPct}%)</span>
+      </div>`;
+    td.categories.forEach(cat => {
+      html += `<div class="category-group">
+        <div class="category-label">${cat.name}</div>
+        <div class="book-grid">`;
+      cat.books.forEach(book => {
+        const read = getBookProgress(book);
+        const cls = read===book.chapters ? 'completed' : read>0 ? 'in-progress' : '';
+        const dot = (read>0&&read<book.chapters) ? '<div class="book-progress-dot"></div>' : '';
+        html += `<button class="book-btn ${cls}" onclick="openBook('${book.id}')">
+          ${dot}
+          <div class="book-name">${book.name}</div>
+        </button>`;
+      });
+      html += `</div></div>`;
+    });
+    html += `</div>`;
+  });
+  view.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════
+// 장 뷰
+// ═══════════════════════════════════════════════
+let currentBook = null;
+
+function openBook(bookId) {
+  currentBook = ALL_BOOKS.find(b=>b.id===bookId);
+  document.getElementById('bibleListView').style.display='none';
+  document.getElementById('chapterView').style.display='block';
+  document.getElementById('chapterBookTitle').textContent = currentBook.name;
+  document.getElementById('chapterBookSub').textContent =
+    (currentBook.testament==='ot'?'히브리어 성경':'그리스어 성경') + ' · ' + currentBook.chapters + '장';
+  renderChapters();
+}
+
+function closeChapterView() {
+  document.getElementById('bibleListView').style.display='block';
+  document.getElementById('chapterView').style.display='none';
+  renderBibleList();
+  updateHeaderProgress();
+}
+
+function renderChapters() {
+  const data = loadData();
+  let readCount = 0;
+  const book = currentBook;
+
+  // 진행률 원형
+  let gridHtml = '';
+  for(let c=1;c<=book.chapters;c++) {
+    const cd = data[getChapterKey(book.id,c)] || {};
+    const isRead = cd.read || false;
+    const hasMemo = cd.memo && cd.memo.trim().length > 0;
+    if(isRead) readCount++;
+    const dateStr = isRead && cd.date ? cd.date.slice(5) : '';
+    gridHtml += `<button class="ch-btn ${isRead?'read':''} ${hasMemo?'has-memo':''}"
+      onclick="openMemoModal('${book.id}',${c})">
+      ${c}
+      ${isRead&&dateStr ? `<div class="ch-read-date">${dateStr}</div>` : ''}
+    </button>`;
+  }
+  document.getElementById('chapterGrid').innerHTML = gridHtml;
+
+  const pct = Math.round(readCount/book.chapters*100);
+  const deg = pct*3.6;
+  const prog = document.getElementById('chapterBookProgress');
+  prog.innerHTML = `
+    <div class="cbp-circle" style="background:conic-gradient(#2C4A6E ${deg}deg, #EDE8DC ${deg}deg)">
+      <div class="cbp-inner">${pct}%</div>
+    </div>
+    <div class="cbp-text">
+      <div class="cbp-label">진행률</div>
+      <div class="cbp-value">${readCount} / ${book.chapters} 장 완료</div>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════
+// 메모 모달
+// ═══════════════════════════════════════════════
+let modalBook = null, modalChapter = null;
+
+function openMemoModal(bookId, ch) {
+  modalBook = bookId;
+  modalChapter = ch;
+  const book = ALL_BOOKS.find(b=>b.id===bookId);
+  const cd = getChapterData(bookId, ch);
+
+  document.getElementById('memoModalTitle').textContent = `${book.name} ${ch}장`;
+  const toggle = document.getElementById('readToggle');
+  toggle.className = 'check-toggle' + (cd.read ? ' on' : '');
+  document.getElementById('readDateDisplay').textContent = cd.read && cd.date ? `읽은 날짜: ${cd.date}` : '아직 읽지 않음';
+  document.getElementById('memoText').value = cd.memo || '';
+  document.getElementById('memoCharCount').textContent = (cd.memo||'').length;
+  document.getElementById('memoModal').classList.add('open');
+}
+
+function toggleReadStatus() {
+  const toggle = document.getElementById('readToggle');
+  const isOn = toggle.classList.toggle('on');
+  const dateEl = document.getElementById('readDateDisplay');
+  if(isOn) {
+    const today = new Date().toISOString().slice(0,10);
+    dateEl.textContent = `읽은 날짜: ${today}`;
+  } else {
+    dateEl.textContent = '아직 읽지 않음';
+  }
+}
+
+function saveChapterData() {
+  const isRead = document.getElementById('readToggle').classList.contains('on');
+  const memo = document.getElementById('memoText').value.trim();
+  const today = new Date().toISOString().slice(0,10);
+  const existing = getChapterData(modalBook, modalChapter);
+  setChapterData(modalBook, modalChapter, {
+    read: isRead,
+    date: isRead ? (existing.read && existing.date ? existing.date : today) : null,
+    memo: memo
+  });
+  closeModal();
+  renderChapters();
+  updateHeaderProgress();
+  showToast(isRead ? '✅ 읽음으로 표시했어요!' : '📖 읽지 않음으로 변경했어요');
+}
+
+function closeModal() {
+  document.getElementById('memoModal').classList.remove('open');
+  modalBook = null; modalChapter = null;
+}
+
+document.getElementById('memoText').addEventListener('input', function() {
+  document.getElementById('memoCharCount').textContent = this.value.length;
+});
+
+document.getElementById('memoModal').addEventListener('click', function(e) {
+  if(e.target===this) closeModal();
+});
+
+// ═══════════════════════════════════════════════
+// 계획 페이지
+// ═══════════════════════════════════════════════
+let selectedPlanType = '1year';
+
+function selectPlanType(type, btn) {
+  selectedPlanType = type;
+  document.querySelectorAll('.plan-type-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  updateDailyChaptersDisplay();
+  document.getElementById('customDaysRow').style.display = type==='custom' ? 'block' : 'none';
+}
+
+function updateDailyChaptersDisplay() {
+  const days = selectedPlanType==='1year' ? 365 : selectedPlanType==='6month' ? 183 :
+    (parseInt(document.getElementById('customDays')?.value)||180);
+  const perDay = (TOTAL_CHAPTERS / days).toFixed(1);
+  document.getElementById('dailyChaptersDisplay').value = `약 ${perDay}장 (하루)`;
+}
+
+document.addEventListener('input', function(e) {
+  if(e.target.id==='customDays') updateDailyChaptersDisplay();
+});
+
+async function applyPlan() {
+  const startDate = document.getElementById('planStartDate').value;
+  if(!startDate) { showToast('⚠️ 시작 날짜를 선택해주세요'); return; }
+  const totalDays = selectedPlanType==='1year' ? 365 : selectedPlanType==='6month' ? 183 :
+    (parseInt(document.getElementById('customDays').value)||180);
+  const dailyChapters = parseFloat((TOTAL_CHAPTERS/totalDays).toFixed(1));
+  const planName = document.getElementById('planName').value.trim() || `${selectedPlanType==='1year'?'1년':selectedPlanType==='6month'?'6개월':'직접설정'} 완독 계획`;
+  await savePlan({startDate, totalDays, dailyChapters, planName, type:selectedPlanType});
+  showToast('🎉 계획이 시작되었어요!');
+  renderPlan();
+}
+
+function renderPlan() {
+  const plan = loadPlan();
+  const activeSection = document.getElementById('activePlanSection');
+  const setupSection = document.getElementById('planSetupSection');
+  if(plan) {
+    activeSection.style.display='block';
+    const start = new Date(plan.startDate);
+    const now = new Date();
+    const diffDays = Math.floor((now-start)/(1000*60*60*24))+1;
+    const {totalRead} = calcStats();
+    const expectedRead = Math.round(plan.dailyChapters * diffDays);
+    activeSection.innerHTML = `
+      <div class="section-title" style="margin-bottom:12px">📅 진행 중인 계획</div>
+      <div class="active-plan-display">
+        <div class="apd-label">현재 계획</div>
+        <div class="apd-title">${plan.planName}</div>
+        <div class="apd-stats">
+          <div class="apd-stat"><div class="apd-stat-num">${diffDays}일</div><div class="apd-stat-label">진행 일수</div></div>
+          <div class="apd-stat"><div class="apd-stat-num">${plan.dailyChapters}</div><div class="apd-stat-label">하루 목표</div></div>
+          <div class="apd-stat"><div class="apd-stat-num">${totalRead}</div><div class="apd-stat-label">읽은 장</div></div>
+          <div class="apd-stat"><div class="apd-stat-num">${Math.max(0,expectedRead-totalRead)}</div><div class="apd-stat-label">뒤처진 장</div></div>
+        </div>
+        <button class="plan-cancel-btn" onclick="cancelPlan()">계획 취소하기</button>
+      </div>`;
+    setupSection.style.display='none';
+  } else {
+    activeSection.style.display='none';
+    setupSection.style.display='block';
+    const today = new Date().toISOString().slice(0,10);
+    document.getElementById('planStartDate').value = today;
+    updateDailyChaptersDisplay();
+  }
+  // 자유범위 UI 초기화
+  setTimeout(() => { initFreeRangeUI(); renderFreeRangeHistory(); }, 50);
+}
+
+async function cancelPlan() {
+  if(confirm('계획을 취소하시겠습니까?\n읽기 기록은 그대로 유지됩니다.')) {
+    await savePlan(null);
+    renderPlan();
+    showToast('계획이 취소되었어요');
+  }
+}
+
+// ═══════════════════════════════════════════════
+// 통계 페이지
+// ═══════════════════════════════════════════════
+function renderStats() {
+  const {totalRead, streak, thisMonth} = calcStats();
+  const completedBooks = countCompletedBooks();
+  document.getElementById('statsTotalRead').textContent = totalRead;
+  document.getElementById('statsStreak').textContent = streak;
+  document.getElementById('statsTotalBooks').textContent = completedBooks;
+  document.getElementById('statsThisMonth').textContent = thisMonth;
+
+  // 성경별 진행률 (진행중 또는 완료된 것만)
+  const data = loadData();
+  const bookProgress = ALL_BOOKS.map(book => {
+    let read = 0;
+    for(let c=1;c<=book.chapters;c++) {
+      const cd = data[getChapterKey(book.id,c)];
+      if(cd&&cd.read) read++;
+    }
+    return {book, read, pct: Math.round(read/book.chapters*100)};
+  }).filter(b=>b.read>0).sort((a,b)=>b.pct-a.pct).slice(0,10);
+
+  const barsEl = document.getElementById('bookBars');
+  if(bookProgress.length===0) {
+    barsEl.innerHTML = `<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-text">아직 읽은 기록이 없어요</div></div>`;
+  } else {
+    barsEl.innerHTML = bookProgress.map(({book,read,pct}) => `
+      <div class="book-bar-row">
+        <div class="book-bar-name">${book.name}</div>
+        <div class="book-bar-track"><div class="book-bar-fill" style="width:${pct}%"></div></div>
+        <div class="book-bar-pct">${pct}%</div>
+      </div>
+    `).join('');
+  }
+}
+
+// ── 달력 ──
+let calYear, calMonth;
+function initCal() {
+  const now = new Date();
+  calYear = now.getFullYear(); calMonth = now.getMonth();
+}
+function changeCalMonth(delta) {
+  calMonth += delta;
+  if(calMonth<0){calMonth=11;calYear--;}
+  if(calMonth>11){calMonth=0;calYear++;}
+  renderCalendar();
+}
+function renderCalendar() {
+  const {readDates} = calcStats();
+  const now = new Date();
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  const months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  document.getElementById('calTitle').textContent = `${calYear}년 ${months[calMonth]}`;
+
+  let html = '';
+  for(let i=0;i<firstDay;i++) html += `<div class="cal-day empty"></div>`;
+  for(let d=1;d<=daysInMonth;d++) {
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const count = readDates[dateStr] || 0;
+    const isToday = now.getFullYear()===calYear && now.getMonth()===calMonth && now.getDate()===d;
+    const cls = [
+      'cal-day',
+      isToday ? 'today' : '',
+      count > 0 ? 'has-read' : ''
+    ].filter(Boolean).join(' ');
+    html += `<div class="${cls}">${d}${count>0?`<div class="cal-day-count">${count}</div>`:''}</div>`;
+  }
+  document.getElementById('calGrid').innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════
+// 유틸
+// ═══════════════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+function showSearchModal() {
+  showToast('🔍 검색 기능은 다음 업데이트에서 추가될 예정이에요!');
+}
+
+async function confirmReset() {
+  if(confirm('⚠️ 정말로 모든 읽기 기록을 초기화하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) {
+    if(confirm('마지막 확인: 모든 데이터가 삭제됩니다.')) {
+      showLoading('초기화 중...');
+      try {
+        await db.collection('users').doc(USER_ID).collection('data').doc('chapters').delete();
+        _cache = {};
+        showToast('🗑️ 초기화 완료');
+        renderHome(); renderBibleList(); renderStats(); renderCalendar();
+        updateHeaderProgress();
+      } catch(e) { showToast('⚠️ 초기화 실패'); }
+      hideLoading();
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════
+// 자유 범위 읽기
+// ═══════════════════════════════════════════════
+function initFreeRangeUI() {
+  const bookSel = document.getElementById('freeBook');
+  if(!bookSel) return;
+  bookSel.innerHTML = ALL_BOOKS.map(b =>
+    `<option value="${b.id}">${b.name} (${b.testament==='ot'?'히브리어':'그리스어'})</option>`
+  ).join('');
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('freeDateInput').value = today;
+  updateFreeChapters();
+
+  // 범위 변경 시 미리보기 업데이트
+  ['freeBook','freeChStart','freeChEnd'].forEach(id => {
+    document.getElementById(id).addEventListener('change', updateFreePreview);
+  });
+}
+
+function updateFreeChapters() {
+  const bookId = document.getElementById('freeBook').value;
+  const book = ALL_BOOKS.find(b=>b.id===bookId);
+  if(!book) return;
+  const startSel = document.getElementById('freeChStart');
+  const endSel = document.getElementById('freeChEnd');
+  startSel.innerHTML = Array.from({length:book.chapters},(_,i)=>`<option value="${i+1}">${i+1}장</option>`).join('');
+  endSel.innerHTML = Array.from({length:book.chapters},(_,i)=>`<option value="${i+1}">${i+1}장</option>`).join('');
+  endSel.value = book.chapters; // 기본값: 마지막 장
+  updateFreePreview();
+}
+
+function updateFreePreview() {
+  const bookId = document.getElementById('freeBook').value;
+  const book = ALL_BOOKS.find(b=>b.id===bookId);
+  const start = parseInt(document.getElementById('freeChStart').value);
+  const end = parseInt(document.getElementById('freeChEnd').value);
+  const preview = document.getElementById('freeRangePreview');
+  if(!book || !preview) return;
+  const actualEnd = Math.max(start, end);
+  const count = actualEnd - start + 1;
+
+  // 이미 읽은 장 체크
+  const data = loadData();
+  const alreadyRead = [];
+  for(let c=start; c<=actualEnd; c++) {
+    const cd = data[getChapterKey(bookId, c)];
+    if(cd && cd.read) alreadyRead.push(c);
+  }
+
+  preview.style.display = 'block';
+  preview.innerHTML = `
+    <strong>${book.name} ${start}~${actualEnd}장</strong> · 총 ${count}장
+    ${alreadyRead.length > 0
+      ? `<span style="color:var(--text-muted);margin-left:8px">(이미 읽은 장: ${alreadyRead.join(', ')}장)</span>`
+      : ''}
+  `;
+}
+
+async function applyFreeRange(markRead) {
+  const bookId = document.getElementById('freeBook').value;
+  const book = ALL_BOOKS.find(b=>b.id===bookId);
+  const start = parseInt(document.getElementById('freeChStart').value);
+  const end = parseInt(document.getElementById('freeChEnd').value);
+  const dateVal = document.getElementById('freeDateInput').value;
+  const memo = document.getElementById('freeMemo').value.trim();
+  const actualEnd = Math.max(start, end);
+
+  if(!dateVal) { showToast('⚠️ 날짜를 선택해주세요'); return; }
+
+  const data = loadData();
+  for(let c=start; c<=actualEnd; c++) {
+    const key = getChapterKey(bookId, c);
+    const existing = data[key] || {};
+    data[key] = {
+      read: markRead,
+      date: markRead ? (existing.read && existing.date ? existing.date : dateVal) : null,
+      memo: memo || existing.memo || ''
+    };
+  }
+  saveData(data);
+
+  // 범위 기록 저장
+  const rangeHistory = loadRangeHistory();
+  if(markRead) {
+    rangeHistory.unshift({
+      bookId, bookName: book.name, start, end: actualEnd,
+      date: dateVal, memo, count: actualEnd - start + 1,
+      savedAt: new Date().toISOString()
+    });
+    if(rangeHistory.length > 20) rangeHistory.pop();
+    await saveRangeHistory(rangeHistory);
+  }
+
+  const count = actualEnd - start + 1;
+  showToast(markRead
+    ? `✅ ${book.name} ${start}~${actualEnd}장 (${count}장) 읽음 처리!`
+    : `↩️ ${book.name} ${start}~${actualEnd}장 읽지 않음으로 변경`);
+
+  updateHeaderProgress();
+  renderFreeRangeHistory();
+  updateFreePreview();
+}
+
+function renderFreeRangeHistory() {
+  const el = document.getElementById('freeRangeHistory');
+  if(!el) return;
+  const history = loadRangeHistory();
+  if(history.length === 0) {
+    el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:0.82rem">아직 범위 읽기 기록이 없어요</div>`;
+    return;
+  }
+  el.innerHTML = history.map((r, i) => `
+    <div style="background:white;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 6px rgba(44,74,110,0.08)">
+      <div style="width:38px;height:38px;background:var(--cream);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">📌</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:0.88rem;font-weight:500;color:var(--navy)">${r.bookName} ${r.start}~${r.end}장 <span style="font-weight:400;color:var(--text-muted)">(${r.count}장)</span></div>
+        <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px">${r.date}</div>
+        ${r.memo ? `<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">✏️ ${r.memo}</div>` : ''}
+      </div>
+      <button onclick="deleteRangeHistory(${i})" style="background:none;border:none;color:#ccc;font-size:1rem;cursor:pointer;padding:4px">🗑</button>
+    </div>
+  `).join('');
+}
+
+async function deleteRangeHistory(index) {
+  const h = loadRangeHistory();
+  h.splice(index, 1);
+  await saveRangeHistory(h);
+  renderFreeRangeHistory();
+}
+
+// ═══════════════════════════════════════════════
+// 초기화 (Firebase 데이터 로드 후 렌더)
+// ═══════════════════════════════════════════════
+async function appInit() {
+  await ensureCache();
+  initCal();
+  renderHome();
+  renderBibleList();
+  updateHeaderProgress();
+}
+appInit();
+// 자유범위 UI는 계획 탭 진입 시 renderPlan() 안에서 초기화
+</script>
+</body>
+</html>
