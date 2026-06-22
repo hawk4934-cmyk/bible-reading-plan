@@ -309,6 +309,21 @@
     grid-template-columns: repeat(4, 1fr);
     gap: 6px;
   }
+  @media (min-width: 600px) {
+    .book-grid { grid-template-columns: repeat(6, 1fr); }
+    .chapter-grid { grid-template-columns: repeat(8, 1fr) !important; }
+    .bible-list-page { max-width: 800px; margin: 0 auto; }
+    .chapter-page { max-width: 800px; margin: 0 auto; }
+  }
+  @media (min-width: 900px) {
+    .book-grid { grid-template-columns: repeat(8, 1fr); }
+    .chapter-grid { grid-template-columns: repeat(10, 1fr) !important; }
+    .bible-list-page { max-width: 960px; }
+    .chapter-page { max-width: 960px; }
+    .home-section { max-width: 700px; margin: 0 auto; }
+    .stats-page { max-width: 700px; margin: 0 auto; }
+    .plan-page { max-width: 700px; margin: 0 auto; }
+  }
   .book-btn {
     background: white;
     border: 1.5px solid var(--cream-dark);
@@ -744,13 +759,14 @@
     color: var(--text-muted);
     position: relative;
   }
-  .cal-day.today { font-weight: 700; color: var(--navy); }
-  .cal-day.has-read {
+  .cal-day.today { font-weight: 700; color: var(--navy); }  .cal-day.has-read {
     background: var(--navy);
     color: white;
     font-weight: 500;
+    cursor: pointer;
   }
-  .cal-day.today.has-read { background: var(--gold); color: var(--navy-dark); }
+  .cal-day.has-read:hover { background: var(--navy-light); }
+  .cal-day.today.has-read { background: var(--gold); color: var(--navy-dark); cursor: pointer; }
   .cal-day.empty { opacity: 0; pointer-events: none; }
   .cal-day-count {
     position: absolute;
@@ -758,6 +774,58 @@
     font-size: 0.45rem;
     color: rgba(255,255,255,0.8);
     line-height: 1;
+  }
+
+  /* 날짜 상세 팝업 */
+  .cal-detail-box {
+    background: white;
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    box-shadow: var(--shadow);
+    margin-top: 10px;
+    border-left: 3px solid var(--navy);
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+  .cal-detail-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 8px;
+  }
+  .cal-detail-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--cream-dark);
+    font-size: 0.8rem;
+    color: var(--text);
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .cal-detail-item:last-child { border-bottom: none; }
+  .cal-detail-item:hover { color: var(--navy-light); }
+  .cal-detail-icon { font-size: 0.9rem; }
+
+  /* 필터 버튼 */
+  .filter-btn {
+    padding: 7px 14px;
+    border-radius: 99px;
+    border: 1.5px solid var(--cream-dark);
+    background: white;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.18s;
+    white-space: nowrap;
+  }
+  .filter-btn.active {
+    background: var(--navy);
+    border-color: var(--navy);
+    color: white;
   }
 
   /* 성경별 진행률 바 차트 */
@@ -913,7 +981,14 @@
   <!-- ── 성경 목록 페이지 ── -->
   <div class="page" id="page-bible">
     <div class="bible-list-page" id="bibleListView">
-      <!-- JS로 생성 -->
+      <!-- 필터 바 -->
+      <div style="display:flex;gap:8px;padding:12px 0 4px;position:sticky;top:0;background:var(--cream);z-index:10;margin-bottom:4px">
+        <button class="filter-btn active" onclick="setBibleFilter('all',this)" id="filterAll">전체</button>
+        <button class="filter-btn" onclick="setBibleFilter('read',this)" id="filterRead">✅ 읽음</button>
+        <button class="filter-btn" onclick="setBibleFilter('unread',this)" id="filterUnread">📖 미완료</button>
+        <button class="filter-btn" onclick="setBibleFilter('inprogress',this)" id="filterInprogress">🟡 읽는 중</button>
+      </div>
+      <div id="bibleListContent"><!-- JS로 생성 --></div>
     </div>
     <div class="chapter-page" id="chapterView" style="display:none">
       <div class="chapter-back-header">
@@ -1048,6 +1123,7 @@
           <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
         </div>
         <div class="cal-grid" id="calGrid"></div>
+        <div id="calDetailBox" style="display:none" class="cal-detail-box"></div>
       </div>
 
       <!-- 성경별 진행률 상위 -->
@@ -1469,23 +1545,34 @@ function renderHome() {
     el.innerHTML = `<div class="empty-state"><div class="empty-icon">📖</div><div class="empty-text">아직 읽은 기록이 없어요.<br>성경 탭에서 시작해보세요!</div></div>`;
   } else {
     el.innerHTML = top8.map(r => `
-      <div class="recent-item">
+      <div class="recent-item" onclick="goToBookmark('${r.book.id}',${r.chapter})" style="cursor:pointer">
         <div class="recent-icon">${r.book.testament==='ot'?'📜':'✝️'}</div>
         <div class="recent-text">
           <div class="recent-book">${r.book.name} ${r.chapter}장</div>
           <div class="recent-date">${r.date}</div>
           ${r.memo ? `<div class="recent-memo">✏️ ${r.memo}</div>` : ''}
         </div>
+        <div style="color:var(--navy-light);font-size:0.75rem;flex-shrink:0">→</div>
       </div>
     `).join('');
   }
 }
 
 // ═══════════════════════════════════════════════
-// 성경 목록 렌더링
+// 성경 목록 렌더링 (필터 지원)
 // ═══════════════════════════════════════════════
+let currentBibleFilter = 'all';
+
+function setBibleFilter(filter, btn) {
+  currentBibleFilter = filter;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderBibleList();
+}
+
 function renderBibleList() {
-  const view = document.getElementById('bibleListView');
+  const content = document.getElementById('bibleListContent');
+  if(!content) return;
   const data = loadData();
 
   function getBookProgress(book) {
@@ -1497,36 +1584,55 @@ function renderBibleList() {
     return read;
   }
 
+  function bookMatchesFilter(book) {
+    const read = getBookProgress(book);
+    if(currentBibleFilter === 'all') return true;
+    if(currentBibleFilter === 'read') return read === book.chapters;
+    if(currentBibleFilter === 'unread') return read === 0;
+    if(currentBibleFilter === 'inprogress') return read > 0 && read < book.chapters;
+    return true;
+  }
+
   let html = '';
   ['ot','nt'].forEach(t => {
     const td = BIBLE_DATA[t];
     const tTotal = td.categories.flatMap(c=>c.books).reduce((s,b)=>s+b.chapters,0);
     const tRead = td.categories.flatMap(c=>c.books).reduce((s,b)=>s+getBookProgress(b),0);
     const tPct = Math.round(tRead/tTotal*100);
-    html += `<div class="testament-section">
-      <div class="testament-header">
-        <span>${td.icon}</span>
-        <span class="testament-header-name">${td.name}</span>
-        <span class="testament-header-count">${tRead}/${tTotal}장 (${tPct}%)</span>
-      </div>`;
+
+    let catHtml = '';
     td.categories.forEach(cat => {
-      html += `<div class="category-group">
+      const filtered = cat.books.filter(bookMatchesFilter);
+      if(filtered.length === 0) return;
+      catHtml += `<div class="category-group">
         <div class="category-label">${cat.name}</div>
         <div class="book-grid">`;
-      cat.books.forEach(book => {
+      filtered.forEach(book => {
         const read = getBookProgress(book);
         const cls = read===book.chapters ? 'completed' : read>0 ? 'in-progress' : '';
         const dot = (read>0&&read<book.chapters) ? '<div class="book-progress-dot"></div>' : '';
-        html += `<button class="book-btn ${cls}" onclick="openBook('${book.id}')">
+        catHtml += `<button class="book-btn ${cls}" onclick="openBook('${book.id}')">
           ${dot}
           <div class="book-name">${book.name}</div>
         </button>`;
       });
-      html += `</div></div>`;
+      catHtml += `</div></div>`;
     });
-    html += `</div>`;
+
+    if(catHtml) {
+      html += `<div class="testament-section">
+        <div class="testament-header">
+          <span>${td.icon}</span>
+          <span class="testament-header-name">${td.name}</span>
+          <span class="testament-header-count">${tRead}/${tTotal}장 (${tPct}%)</span>
+        </div>${catHtml}</div>`;
+    }
   });
-  view.innerHTML = html;
+
+  if(!html) {
+    html = `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">해당하는 성경이 없어요</div></div>`;
+  }
+  content.innerHTML = html;
 }
 
 // ═══════════════════════════════════════════════
@@ -1764,7 +1870,7 @@ function renderStats() {
 }
 
 // ── 달력 ──
-let calYear, calMonth;
+let calYear, calMonth, calSelectedDate = null;
 function initCal() {
   const now = new Date();
   calYear = now.getFullYear(); calMonth = now.getMonth();
@@ -1773,8 +1879,10 @@ function changeCalMonth(delta) {
   calMonth += delta;
   if(calMonth<0){calMonth=11;calYear--;}
   if(calMonth>11){calMonth=0;calYear++;}
+  calSelectedDate = null;
   renderCalendar();
 }
+
 function renderCalendar() {
   const {readDates} = calcStats();
   const now = new Date();
@@ -1789,14 +1897,71 @@ function renderCalendar() {
     const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const count = readDates[dateStr] || 0;
     const isToday = now.getFullYear()===calYear && now.getMonth()===calMonth && now.getDate()===d;
-    const cls = [
-      'cal-day',
-      isToday ? 'today' : '',
-      count > 0 ? 'has-read' : ''
-    ].filter(Boolean).join(' ');
-    html += `<div class="${cls}">${d}${count>0?`<div class="cal-day-count">${count}</div>`:''}</div>`;
+    const isSelected = calSelectedDate === dateStr;
+    const cls = ['cal-day', isToday?'today':'', count>0?'has-read':'', isSelected?'cal-selected':''].filter(Boolean).join(' ');
+    const clickAttr = count > 0 ? `onclick="showCalDetail('${dateStr}')"` : '';
+    html += `<div class="${cls}" ${clickAttr}>${d}${count>0?`<div class="cal-day-count">${count}</div>`:''}</div>`;
   }
   document.getElementById('calGrid').innerHTML = html;
+
+  // 선택된 날짜 상세 유지
+  if(calSelectedDate) showCalDetail(calSelectedDate, true);
+  else { const box = document.getElementById('calDetailBox'); if(box) box.style.display='none'; }
+}
+
+function showCalDetail(dateStr, keepSelected=false) {
+  if(!keepSelected) {
+    calSelectedDate = calSelectedDate === dateStr ? null : dateStr;
+    renderCalendar();
+    return;
+  }
+  const data = loadData();
+  const items = [];
+  ALL_BOOKS.forEach(book => {
+    for(let c=1;c<=book.chapters;c++) {
+      const cd = data[getChapterKey(book.id,c)];
+      if(cd && cd.read && cd.date === dateStr) {
+        items.push({book, chapter:c, memo: cd.memo||''});
+      }
+    }
+  });
+  const box = document.getElementById('calDetailBox');
+  if(!box) return;
+  if(items.length === 0) { box.style.display='none'; return; }
+
+  const [y,m,d] = dateStr.split('-');
+  box.style.display = 'block';
+  box.innerHTML = `
+    <div class="cal-detail-title">📅 ${parseInt(m)}월 ${parseInt(d)}일 · ${items.length}장 읽음</div>
+    ${items.map(it => `
+      <div class="cal-detail-item" onclick="goToBookmark('${it.book.id}',${it.chapter})">
+        <span class="cal-detail-icon">${it.book.testament==='ot'?'📜':'✝️'}</span>
+        <span>${it.book.name} ${it.chapter}장</span>
+        ${it.memo ? `<span style="color:var(--text-muted);font-size:0.72rem;margin-left:auto">✏️</span>` : ''}
+        <span style="color:var(--navy-light);margin-left:auto">→</span>
+      </div>
+    `).join('')}
+  `;
+}
+
+// 책갈피 이동: 홈에서 해당 성경 장으로 바로 이동
+function goToBookmark(bookId, chapter) {
+  // 성경 탭으로 이동
+  const bibleTab = document.querySelectorAll('.nav-tab')[1];
+  showPage('bible', bibleTab);
+  // 해당 책 장 뷰 열기
+  setTimeout(() => {
+    openBook(bookId);
+    // 해당 장 하이라이트
+    setTimeout(() => {
+      const btns = document.querySelectorAll('.ch-btn');
+      if(btns[chapter-1]) {
+        btns[chapter-1].scrollIntoView({behavior:'smooth', block:'center'});
+        btns[chapter-1].style.outline = '3px solid var(--gold)';
+        setTimeout(()=>{ btns[chapter-1].style.outline=''; }, 1800);
+      }
+    }, 100);
+  }, 50);
 }
 
 // ═══════════════════════════════════════════════
