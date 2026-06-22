@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#2C4A6E">
 <title>성서읽기 계획표</title>
-<!-- Firebase CDN (compat) -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Serif+KR:wght@400;600&display=swap');
 
@@ -1975,8 +1972,14 @@ async function appInit() {
   renderBibleList();
   updateHeaderProgress();
 }
-appInit();
 // 자유범위 UI는 계획 탭 진입 시 renderPlan() 안에서 초기화
+</script>
+
+<!-- Firebase CDN: body 끝에서 로드 후 앱 초기화 -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+  appInit();
 </script>
 </body>
 </html>
