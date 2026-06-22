@@ -311,18 +311,20 @@
   }
   @media (min-width: 600px) {
     .book-grid { grid-template-columns: repeat(6, 1fr); }
-    .chapter-grid { grid-template-columns: repeat(8, 1fr) !important; }
-    .bible-list-page { max-width: 800px; margin: 0 auto; }
-    .chapter-page { max-width: 800px; margin: 0 auto; }
+    .chapter-grid { grid-template-columns: repeat(15, 1fr) !important; }
+    .ch-btn { font-size: 1.05rem !important; min-height: 44px; }
+    .bible-list-page { max-width: 900px; margin: 0 auto; }
+    .chapter-page { max-width: 900px; margin: 0 auto; }
   }
-  @media (min-width: 900px) {
-    .book-grid { grid-template-columns: repeat(8, 1fr); }
-    .chapter-grid { grid-template-columns: repeat(10, 1fr) !important; }
-    .bible-list-page { max-width: 960px; }
-    .chapter-page { max-width: 960px; }
-    .home-section { max-width: 700px; margin: 0 auto; }
-    .stats-page { max-width: 700px; margin: 0 auto; }
-    .plan-page { max-width: 700px; margin: 0 auto; }
+  @media (min-width: 1024px) {
+    .book-grid { grid-template-columns: repeat(10, 1fr); }
+    .chapter-grid { grid-template-columns: repeat(30, 1fr) !important; }
+    .ch-btn { font-size: 1.1rem !important; min-height: 48px; }
+    .bible-list-page { max-width: 1400px; }
+    .chapter-page { max-width: 1400px; }
+    .home-section { max-width: 760px; margin: 0 auto; }
+    .stats-page { max-width: 760px; margin: 0 auto; }
+    .plan-page { max-width: 760px; margin: 0 auto; }
   }
   .book-btn {
     background: white;
@@ -419,8 +421,8 @@
     border: 1.5px solid var(--cream-dark);
     background: white;
     cursor: pointer;
-    font-size: 0.88rem;
-    font-weight: 500;
+    font-size: 1rem;
+    font-weight: 600;
     color: var(--text);
     position: relative;
     transition: all 0.18s;
@@ -900,6 +902,7 @@
     <div class="app-title"><span>📖</span> 성서읽기 계획표</div>
     <div class="header-actions">
       <button class="icon-btn" onclick="showSearchModal()" title="검색">🔍</button>
+      <button class="icon-btn" onclick="refreshApp()" title="새로고침" id="refreshBtn">🔄</button>
     </div>
   </div>
   <div class="header-progress">
@@ -1976,6 +1979,33 @@ function showToast(msg) {
 
 function showSearchModal() {
   showToast('🔍 검색 기능은 다음 업데이트에서 추가될 예정이에요!');
+}
+
+// ── 새로고침 ──
+async function refreshApp() {
+  const btn = document.getElementById('refreshBtn');
+  if(btn) { btn.style.animation = 'spin 0.8s linear infinite'; btn.style.opacity = '0.6'; }
+  _cacheLoaded = false;
+  _cache = null;
+  _planCache = null;
+  _rangeCache = null;
+  try {
+    await ensureCache();
+    // 현재 활성 탭 다시 렌더
+    const activePage = document.querySelector('.page.active');
+    if(activePage) {
+      const id = activePage.id;
+      if(id==='page-home') renderHome();
+      else if(id==='page-bible') renderBibleList();
+      else if(id==='page-plan') renderPlan();
+      else if(id==='page-stats') { renderStats(); renderCalendar(); }
+    }
+    updateHeaderProgress();
+    showToast('✅ 데이터를 새로 불러왔어요!');
+  } catch(e) {
+    showToast('⚠️ 새로고침 실패');
+  }
+  if(btn) { btn.style.animation = ''; btn.style.opacity = '1'; }
 }
 
 async function confirmReset() {
