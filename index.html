@@ -1197,7 +1197,7 @@ const OT_CHAPTERS = ALL_BOOKS.filter(b=>b.testament==='ot').reduce((s,b)=>s+b.ch
 const NT_CHAPTERS = ALL_BOOKS.filter(b=>b.testament==='nt').reduce((s,b)=>s+b.chapters,0);
 
 // ═══════════════════════════════════════════════
-// Firebase 설정 및 초기화
+// Firebase 설정 (초기화는 SDK 로드 후 별도 블록에서)
 // ═══════════════════════════════════════════════
 const firebaseConfig = {
   apiKey: "AIzaSyCu7emDZJXo9m2gCTcCfywxl1uRSgP-7IU",
@@ -1208,12 +1208,10 @@ const firebaseConfig = {
   appId: "1:453532521901:web:70d9ef4516fb6660dc7d24"
 };
 
-// Firebase SDK (CDN compat)
-const _fbApp = firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+// db는 SDK 로드 후 초기화됨 (body 끝 script 블록 참고)
+let db = null;
 
 // 사용자 ID: 익명 고정 (로그인 없이 기기당 1계정)
-// 향후 Auth 추가 시 여기만 교체
 const USER_ID = 'user_default';
 
 // ═══════════════════════════════════════════════
@@ -1979,6 +1977,9 @@ async function appInit() {
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script>
+  // SDK 로드 완료 후 Firebase 초기화
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
   appInit();
 </script>
 </body>
