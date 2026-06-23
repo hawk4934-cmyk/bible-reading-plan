@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#2C4A6E">
 <title>성서읽기 계획표</title>
+<meta name="version" content="1.0.13">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Serif+KR:wght@400;600&display=swap');
 
@@ -434,6 +438,12 @@
     border-color: var(--navy);
     color: white;
   }
+  .ch-btn.in-progress-ch {
+    background: #fef9c3;
+    border-color: var(--gold);
+    color: #854d0e;
+  }
+  .ch-btn.in-progress-ch .ch-read-date { color: #a16207; }
   .ch-btn.has-memo::after {
     content: '✏️';
     font-size: 0.55rem;
@@ -1257,10 +1267,26 @@
           <div style="font-size:0.8rem;color:var(--text-muted);width:70px">아이디</div>
           <div style="font-size:0.9rem;font-weight:600;color:var(--navy)" id="settingUserId">-</div>
         </div>
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 0">
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--cream-dark)">
           <div style="font-size:0.8rem;color:var(--text-muted);width:70px">상태</div>
           <div style="font-size:0.85rem;color:var(--check)" id="settingUserStatus">로그인됨</div>
         </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0">
+          <div style="font-size:0.8rem;color:var(--text-muted);width:70px">앱 버전</div>
+          <div style="font-size:0.85rem;color:var(--navy);font-weight:500" id="settingVersion">v1.0.13</div>
+        </div>
+      </div>
+
+      <!-- 앱 업데이트 -->
+      <div style="background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);margin-bottom:14px">
+        <div style="font-size:0.82rem;font-weight:500;color:var(--navy);margin-bottom:8px;display:flex;align-items:center;gap:6px">🔄 앱 업데이트</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:12px">최신 버전이 반영되지 않을 때 아래 버튼을 누르세요. 캐시를 완전히 초기화하고 새로 불러와요.</div>
+        <button onclick="hardRefresh()"
+          style="width:100%;padding:12px;background:linear-gradient(135deg,var(--navy),var(--navy-light));
+          color:white;border:none;border-radius:10px;font-family:'Noto Sans KR',sans-serif;
+          font-size:0.88rem;font-weight:500;cursor:pointer">
+          🔄 캐시 초기화 후 새로고침
+        </button>
       </div>
 
       <!-- 비밀번호 변경 -->
@@ -1903,13 +1929,15 @@ function renderChapters() {
   for(let c=1;c<=book.chapters;c++) {
     const cd = data[getChapterKey(book.id,c)] || {};
     const isRead = cd.read || false;
+    const isInProgress = !isRead && cd.date; // 날짜 있지만 완료 안 된 것 = 읽는 중
     const hasMemo = cd.memo && cd.memo.trim().length > 0;
     if(isRead) readCount++;
-    const dateStr = isRead && cd.date ? cd.date.slice(5) : '';
-    gridHtml += `<button class="ch-btn ${isRead?'read':''} ${hasMemo?'has-memo':''}"
+    const dateStr = cd.date ? cd.date.slice(5) : '';
+    const btnClass = isRead ? 'read' : isInProgress ? 'in-progress-ch' : '';
+    gridHtml += `<button class="ch-btn ${btnClass} ${hasMemo?'has-memo':''}"
       onclick="openMemoModal('${book.id}',${c})">
       ${c}
-      ${isRead&&dateStr ? `<div class="ch-read-date">${dateStr}</div>` : ''}
+      ${dateStr ? `<div class="ch-read-date">${dateStr}</div>` : ''}
     </button>`;
   }
   document.getElementById('chapterGrid').innerHTML = gridHtml;
@@ -1976,14 +2004,17 @@ function setReadStatus(markRead) {
   const today = new Date().toISOString().slice(0,10);
   setChapterData(modalBook, modalChapter, {
     read: markRead,
-    date: markRead ? (existing.read && existing.date ? existing.date : today) : null,
+    // 읽음 완료: 기존 날짜 유지 or 오늘
+    // 읽는 중: 기존 날짜 유지 or 오늘 (날짜 저장해야 최근 기록에 표시됨)
+    // 완전 미읽음으로 되돌리려면 메모도 지워야 하는데 그 케이스는 없으므로 날짜 항상 유지
+    date: existing.date || today,
     memo: memo || existing.memo || ''
   });
   const cd = getChapterData(modalBook, modalChapter);
   updateReadStatusUI(cd.read, cd.date);
   renderChapters();
   updateHeaderProgress();
-  showToast(markRead ? '✅ 읽음 완료로 표시했어요!' : '🟡 읽는 중으로 변경했어요');
+  showToast(markRead ? '✅ 읽음 완료로 표시했어요!' : '🟡 읽는 중으로 표시했어요');
 }
 
 function saveMemoOnly() {
@@ -2607,6 +2638,22 @@ async function masterDeleteAccount(targetId) {
 }
 
 // ── 설정 페이지 렌더 ──
+// ── 캐시 강제 초기화 새로고침 ──
+async function hardRefresh() {
+  try {
+    // 1. Service Worker 캐시 전체 삭제
+    if('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+    // 2. URL에 타임스탬프 붙여서 완전히 새로 로드
+    const url = location.href.split('?')[0];
+    location.replace(url + '?v=' + Date.now());
+  } catch(e) {
+    location.replace(location.href.split('?')[0] + '?v=' + Date.now());
+  }
+}
+
 function renderSettings() {
   const el = document.getElementById('settingUserId');
   if(el) el.textContent = USER_ID || '-';
