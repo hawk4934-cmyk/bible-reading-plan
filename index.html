@@ -916,7 +916,6 @@
       <button class="icon-btn" onclick="showSearchModal()" title="검색">🔍</button>
       <button class="icon-btn" onclick="refreshApp()" title="새로고침" id="refreshBtn">🔄</button>
       <button class="icon-btn" onclick="showMasterPanel()" title="마스터 관리" id="masterBtn" style="display:none">🔐</button>
-      <button class="icon-btn" onclick="doLogout()" title="로그아웃" id="logoutBtn">🚪</button>
     </div>
   </div>
   <div class="header-progress">
@@ -940,6 +939,9 @@
     </button>
     <button class="nav-tab" onclick="showPage('stats',this)">
       <span class="tab-icon">📊</span>통계
+    </button>
+    <button class="nav-tab" onclick="showPage('settings',this)">
+      <span class="tab-icon">⚙️</span>설정
     </button>
   </nav>
 </header>
@@ -1079,7 +1081,7 @@
           <div class="mini-progress"><div class="mini-fill ot-fill" id="otBar" style="width:0%"></div></div>
         </div>
         <div class="testament-card">
-          <div class="testament-name">✝️ 그리스어 성경</div>
+          <div class="testament-name">📗 그리스어 성경</div>
           <div class="testament-pct" id="ntPct">0%</div>
           <div class="mini-progress"><div class="mini-fill nt-fill" id="ntBar" style="width:0%"></div></div>
         </div>
@@ -1240,12 +1242,76 @@
       <div class="section-title" style="margin-bottom:10px">📈 성경별 진행률</div>
       <div class="book-bars" id="bookBars"></div>
 
-      <div class="danger-zone">
-        <div class="danger-title">⚠️ 데이터 초기화</div>
-        <button class="btn-danger" onclick="confirmReset()">전체 읽기 기록 초기화</button>
+
+    </div>
+  </div>
+  <!-- ── 설정 페이지 ── -->
+  <div class="page" id="page-settings">
+    <div style="padding:16px;max-width:600px;margin:0 auto">
+      <div class="section-title" style="margin-bottom:16px">⚙️ 설정</div>
+
+      <!-- 계정 정보 -->
+      <div style="background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);margin-bottom:14px">
+        <div style="font-size:0.82rem;font-weight:500;color:var(--navy);margin-bottom:12px;display:flex;align-items:center;gap:6px">👤 계정 정보</div>
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--cream-dark)">
+          <div style="font-size:0.8rem;color:var(--text-muted);width:70px">아이디</div>
+          <div style="font-size:0.9rem;font-weight:600;color:var(--navy)" id="settingUserId">-</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0">
+          <div style="font-size:0.8rem;color:var(--text-muted);width:70px">상태</div>
+          <div style="font-size:0.85rem;color:var(--check)" id="settingUserStatus">로그인됨</div>
+        </div>
+      </div>
+
+      <!-- 비밀번호 변경 -->
+      <div style="background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);margin-bottom:14px">
+        <div style="font-size:0.82rem;font-weight:500;color:var(--navy);margin-bottom:14px;display:flex;align-items:center;gap:6px">🔑 비밀번호 변경</div>
+        <div id="pwChangeError" style="display:none;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:8px;padding:9px 12px;font-size:0.78rem;color:#dc2626;margin-bottom:12px"></div>
+        <div id="pwChangeSuccess" style="display:none;background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:9px 12px;font-size:0.78rem;color:#166534;margin-bottom:12px"></div>
+        <div class="form-row">
+          <label class="form-label">현재 비밀번호</label>
+          <input type="password" class="form-input" id="currentPw" placeholder="현재 비밀번호 입력">
+        </div>
+        <div class="form-row">
+          <label class="form-label">새 비밀번호</label>
+          <input type="password" class="form-input" id="newPw" placeholder="새 비밀번호 입력">
+        </div>
+        <div class="form-row">
+          <label class="form-label">새 비밀번호 확인</label>
+          <input type="password" class="form-input" id="newPw2" placeholder="새 비밀번호 재입력">
+        </div>
+        <button onclick="changePassword()"
+          style="width:100%;padding:13px;background:var(--navy);color:white;border:none;
+          border-radius:10px;font-family:'Noto Sans KR',sans-serif;font-size:0.9rem;
+          font-weight:500;cursor:pointer;margin-top:4px">
+          비밀번호 변경
+        </button>
+      </div>
+
+      <!-- 로그아웃 -->
+      <div style="background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);margin-bottom:14px">
+        <div style="font-size:0.82rem;font-weight:500;color:var(--navy);margin-bottom:12px">🚪 로그아웃</div>
+        <button onclick="doLogout()"
+          style="width:100%;padding:12px;background:#fef2f2;border:1.5px solid #fca5a5;
+          border-radius:10px;font-family:'Noto Sans KR',sans-serif;font-size:0.88rem;
+          color:#dc2626;cursor:pointer;font-weight:500">
+          로그아웃
+        </button>
+      </div>
+
+      <!-- 데이터 초기화 -->
+      <div style="background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);margin-bottom:14px;border-left:3px solid #ef4444">
+        <div style="font-size:0.82rem;font-weight:500;color:#ef4444;margin-bottom:8px">⚠️ 데이터 초기화</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:10px">모든 읽기 기록이 삭제됩니다. 되돌릴 수 없습니다.</div>
+        <button onclick="confirmReset()"
+          style="padding:9px 16px;background:#fef2f2;border:1.5px solid #fca5a5;
+          border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:0.8rem;color:#ef4444;cursor:pointer">
+          전체 읽기 기록 초기화
+        </button>
       </div>
     </div>
   </div>
+
 </main>
 
 <!-- 메모/체크 모달 -->
@@ -1619,6 +1685,7 @@ function showPage(name, btn) {
   if(name==='bible') renderBibleList();
   if(name==='plan') renderPlan();
   if(name==='stats') { renderStats(); renderCalendar(); }
+  if(name==='settings') renderSettings();
 
   updateHeaderProgress();
 }
@@ -1688,7 +1755,7 @@ function renderHome() {
   } else {
     el.innerHTML = top8.map(r => `
       <div class="recent-item" onclick="goToBookmark('${r.book.id}',${r.chapter})" style="cursor:pointer">
-        <div class="recent-icon">${r.book.testament==='ot'?'📜':'✝️'}</div>
+        <div class="recent-icon">${r.book.testament==='ot'?'📜':'📗'}</div>
         <div class="recent-text">
           <div class="recent-book">${r.book.name} ${r.chapter}장</div>
           <div class="recent-date">${r.date}</div>
@@ -2127,7 +2194,7 @@ function showCalDetail(dateStr, keepSelected=false) {
     <div class="cal-detail-title">📅 ${parseInt(m)}월 ${parseInt(d)}일 · ${items.length}장 읽음</div>
     ${items.map(it => `
       <div class="cal-detail-item" onclick="goToBookmark('${it.book.id}',${it.chapter})">
-        <span class="cal-detail-icon">${it.book.testament==='ot'?'📜':'✝️'}</span>
+        <span class="cal-detail-icon">${it.book.testament==='ot'?'📜':'📗'}</span>
         <span>${it.book.name} ${it.chapter}장</span>
         ${it.memo ? `<span style="color:var(--text-muted);font-size:0.72rem;margin-left:auto">✏️</span>` : ''}
         <span style="color:var(--navy-light);margin-left:auto">→</span>
@@ -2531,6 +2598,50 @@ async function masterDeleteAccount(targetId) {
     showToast(`🗑️ [${targetId}] 계정이 삭제되었어요`);
     showMasterPanel(); // 목록 새로고침
   } catch(e) { hideLoading(); showToast('⚠️ 삭제 실패'); }
+}
+
+// ── 설정 페이지 렌더 ──
+function renderSettings() {
+  const el = document.getElementById('settingUserId');
+  if(el) el.textContent = USER_ID || '-';
+  // 입력 필드 초기화
+  ['currentPw','newPw','newPw2'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+  ['pwChangeError','pwChangeSuccess'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.style.display = 'none';
+  });
+}
+
+// ── 비밀번호 변경 ──
+async function changePassword() {
+  const currentPw = document.getElementById('currentPw').value;
+  const newPw = document.getElementById('newPw').value;
+  const newPw2 = document.getElementById('newPw2').value;
+  const errEl = document.getElementById('pwChangeError');
+  const okEl = document.getElementById('pwChangeSuccess');
+  errEl.style.display = 'none';
+  okEl.style.display = 'none';
+
+  if(!currentPw) { errEl.textContent='현재 비밀번호를 입력해주세요'; errEl.style.display='block'; return; }
+  if(!newPw) { errEl.textContent='새 비밀번호를 입력해주세요'; errEl.style.display='block'; return; }
+  if(newPw !== newPw2) { errEl.textContent='새 비밀번호가 일치하지 않습니다'; errEl.style.display='block'; return; }
+
+  try {
+    const currentHash = await sha256(currentPw);
+    const userDoc = await db.collection('accounts').doc(USER_ID).get();
+    if(!userDoc.exists || userDoc.data().pwHash !== currentHash) {
+      errEl.textContent = '현재 비밀번호가 맞지 않습니다'; errEl.style.display='block'; return;
+    }
+    const newHash = await sha256(newPw);
+    await db.collection('accounts').doc(USER_ID).update({pwHash: newHash});
+    okEl.textContent = '✅ 비밀번호가 변경되었어요!'; okEl.style.display='block';
+    ['currentPw','newPw','newPw2'].forEach(id => { document.getElementById(id).value=''; });
+  } catch(e) {
+    errEl.textContent = '오류가 발생했어요. 다시 시도해주세요'; errEl.style.display='block';
+  }
 }
 
 function doLogout() {
