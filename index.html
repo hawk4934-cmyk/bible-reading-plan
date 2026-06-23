@@ -337,8 +337,8 @@
   }
   .book-btn:hover { border-color: var(--navy-light); transform: translateY(-1px); }
   .book-btn.completed { background: var(--navy); border-color: var(--navy); color: white; }
-  .book-btn.in-progress { border-color: var(--gold); background: #fffdf5; }
-  .book-name { font-size: 0.75rem; font-weight: 500; line-height: 1.2; }
+  .book-btn.in-progress { border-color: var(--gold); background: #fffdf5; box-shadow: 0 0 0 1.5px var(--gold); }
+  .book-name { font-size: 0.85rem; font-weight: 700; line-height: 1.2; }
   .book-progress-dot {
     position: absolute;
     top: 4px; right: 4px;
@@ -953,8 +953,8 @@
   <div style="display:flex;gap:8px;min-width:max-content">
     <button class="filter-btn active" onclick="setBibleFilter('all',this)" id="filterAll">전체</button>
     <button class="filter-btn" onclick="setBibleFilter('read',this)" id="filterRead">✅ 읽음</button>
-    <button class="filter-btn" onclick="setBibleFilter('unread',this)" id="filterUnread">📖 미완료</button>
     <button class="filter-btn" onclick="setBibleFilter('inprogress',this)" id="filterInprogress">🟡 읽는 중</button>
+    <button class="filter-btn" onclick="setBibleFilter('unread',this)" id="filterUnread">📖 미읽음</button>
   </div>
 </div>
 
@@ -1335,7 +1335,7 @@
         style="flex:1;padding:12px;border-radius:10px;border:2px solid #f59e0b;
         background:white;font-family:'Noto Sans KR',sans-serif;font-size:0.9rem;
         font-weight:600;color:#92400e;cursor:pointer;transition:all 0.18s">
-        ↩️ 미완료
+        🟡 읽는 중
       </button>
     </div>
 
@@ -1736,14 +1736,15 @@ function renderHome() {
     planEl.innerHTML = '<div class="plan-no-active">활성 계획이 없습니다. 계획 탭에서 설정해보세요 ✨</div>';
   }
 
-  // 최근 기록
+  // 최근 기록 (읽음 완료 + 읽는 중 모두 포함)
   const data = loadData();
   const recent = [];
   ALL_BOOKS.forEach(book => {
     for(let c=1;c<=book.chapters;c++) {
       const cd = data[getChapterKey(book.id,c)];
-      if(cd&&cd.read&&cd.date) {
-        recent.push({book, chapter:c, date:cd.date, memo:cd.memo});
+      // 읽음 완료이거나, 읽는 중(read=false지만 메모/날짜 있는 것) 포함
+      if(cd && cd.date) {
+        recent.push({book, chapter:c, date:cd.date, memo:cd.memo, isRead:cd.read});
       }
     }
   });
@@ -1757,7 +1758,12 @@ function renderHome() {
       <div class="recent-item" onclick="goToBookmark('${r.book.id}',${r.chapter})" style="cursor:pointer">
         <div class="recent-icon">${r.book.testament==='ot'?'📜':'📗'}</div>
         <div class="recent-text">
-          <div class="recent-book">${r.book.name} ${r.chapter}장</div>
+          <div class="recent-book" style="display:flex;align-items:center;gap:6px">
+            ${r.book.name} ${r.chapter}장
+            ${r.isRead
+              ? '<span style="font-size:0.62rem;background:#dcfce7;color:#166534;padding:1px 6px;border-radius:99px;font-weight:600">완료</span>'
+              : '<span style="font-size:0.62rem;background:#fef9c3;color:#854d0e;padding:1px 6px;border-radius:99px;font-weight:600">읽는 중</span>'}
+          </div>
           <div class="recent-date">${r.date}</div>
           ${r.memo ? `<div class="recent-memo">✏️ ${r.memo}</div>` : ''}
         </div>
@@ -1977,7 +1983,7 @@ function setReadStatus(markRead) {
   updateReadStatusUI(cd.read, cd.date);
   renderChapters();
   updateHeaderProgress();
-  showToast(markRead ? '✅ 읽음 완료로 표시했어요!' : '↩️ 미완료로 변경했어요');
+  showToast(markRead ? '✅ 읽음 완료로 표시했어요!' : '🟡 읽는 중으로 변경했어요');
 }
 
 function saveMemoOnly() {
