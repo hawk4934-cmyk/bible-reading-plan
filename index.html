@@ -915,6 +915,7 @@
     <div class="header-actions">
       <button class="icon-btn" onclick="showSearchModal()" title="검색">🔍</button>
       <button class="icon-btn" onclick="refreshApp()" title="새로고침" id="refreshBtn">🔄</button>
+      <button class="icon-btn" onclick="showMasterPanel()" title="마스터 관리" id="masterBtn" style="display:none">🔐</button>
       <button class="icon-btn" onclick="doLogout()" title="로그아웃" id="logoutBtn">🚪</button>
     </div>
   </div>
@@ -1016,7 +1017,7 @@
         font-family:'Noto Sans KR',sans-serif;font-size:0.9rem;outline:none;box-sizing:border-box">
     </div>
     <div style="margin-bottom:12px">
-      <label style="font-size:0.75rem;color:#6b7280;display:block;margin-bottom:5px">비밀번호 (6자 이상)</label>
+      <label style="font-size:0.75rem;color:#6b7280;display:block;margin-bottom:5px">비밀번호</label>
       <input id="regPw" type="password" placeholder="비밀번호"
         style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;
         font-family:'Noto Sans KR',sans-serif;font-size:0.9rem;outline:none;box-sizing:border-box">
@@ -1290,44 +1291,46 @@
 // ═══════════════════════════════════════════════
 const BIBLE_DATA = {
   ot: {
-    name: '히브리어 성경', icon: '📜',
+    name: '히브리어-아람어 성경', icon: '📜',
     categories: [
-      { name: '율법서 (모세 오경)', books: [
+      { name: '창조와 인류의 초기 역사', books: [
         {id:'ge', name:'창세기', chapters:50},
         {id:'ex', name:'출애굽기', chapters:40},
         {id:'le', name:'레위기', chapters:27},
         {id:'nu', name:'민수기', chapters:36},
         {id:'de', name:'신명기', chapters:34},
       ]},
-      { name: '역사서', books: [
+      { name: '약속의 땅에 정착하다', books: [
         {id:'jos', name:'여호수아', chapters:24},
         {id:'jg', name:'사사기', chapters:21},
         {id:'ru', name:'룻기', chapters:4},
+      ]},
+      { name: '고대 이스라엘의 왕들', books: [
         {id:'1sa', name:'사무엘상', chapters:31},
         {id:'2sa', name:'사무엘하', chapters:24},
         {id:'1ki', name:'열왕기상', chapters:22},
         {id:'2ki', name:'열왕기하', chapters:25},
         {id:'1ch', name:'역대상', chapters:29},
         {id:'2ch', name:'역대하', chapters:36},
+        {id:'ps', name:'시편', chapters:150},
+      ]},
+      { name: '유배에서 돌아오다', books: [
         {id:'ezr', name:'에스라', chapters:10},
         {id:'ne', name:'느헤미야', chapters:13},
         {id:'es', name:'에스더', chapters:10},
       ]},
-      { name: '시가서', books: [
+      { name: '몸에 관한 기록', books: [
         {id:'job', name:'욥기', chapters:42},
-        {id:'ps', name:'시편', chapters:150},
         {id:'pr', name:'잠언', chapters:31},
         {id:'ec', name:'전도서', chapters:12},
         {id:'ca', name:'아가', chapters:8},
       ]},
-      { name: '예언서 (대예언서)', books: [
+      { name: '시와 노래와 실용적인 조언', books: [
         {id:'isa', name:'이사야', chapters:66},
         {id:'jer', name:'예레미야', chapters:52},
         {id:'la', name:'예레미야애가', chapters:5},
         {id:'eze', name:'에스겔', chapters:48},
         {id:'da', name:'다니엘', chapters:12},
-      ]},
-      { name: '예언서 (소예언서)', books: [
         {id:'ho', name:'호세아', chapters:14},
         {id:'joe', name:'요엘', chapters:3},
         {id:'am', name:'아모스', chapters:9},
@@ -1344,16 +1347,18 @@ const BIBLE_DATA = {
     ]
   },
   nt: {
-    name: '그리스어 성경', icon: '✝️',
+    name: '그리스도인 그리스어 성경', icon: '📗',
     categories: [
-      { name: '복음서 및 사도행전', books: [
+      { name: '예수의 삶과 봉사', books: [
         {id:'mt', name:'마태복음', chapters:28},
         {id:'mr', name:'마가복음', chapters:16},
         {id:'lu', name:'누가복음', chapters:24},
         {id:'joh', name:'요한복음', chapters:21},
+      ]},
+      { name: '그리스도인 회중의 성장', books: [
         {id:'ac', name:'사도행전', chapters:28},
       ]},
-      { name: '바울 서신', books: [
+      { name: '사도 바울의 편지', books: [
         {id:'ro', name:'로마서', chapters:16},
         {id:'1co', name:'고린도전서', chapters:16},
         {id:'2co', name:'고린도후서', chapters:13},
@@ -1367,9 +1372,9 @@ const BIBLE_DATA = {
         {id:'2ti', name:'디모데후서', chapters:4},
         {id:'tit', name:'디도서', chapters:3},
         {id:'phm', name:'빌레몬서', chapters:1},
-      ]},
-      { name: '일반 서신 및 요한계시록', books: [
         {id:'heb', name:'히브리서', chapters:13},
+      ]},
+      { name: '다른 사도들과 제자들의 기록', books: [
         {id:'jas', name:'야고보서', chapters:5},
         {id:'1pe', name:'베드로전서', chapters:5},
         {id:'2pe', name:'베드로후서', chapters:3},
@@ -2348,6 +2353,9 @@ async function appInit() {
   renderHome();
   renderBibleList();
   updateHeaderProgress();
+  // 마스터 버튼 표시
+  const mb = document.getElementById('masterBtn');
+  if(mb) mb.style.display = isMaster() ? 'flex' : 'none';
 }
 
 // ═══════════════════════════════════════════════
@@ -2410,7 +2418,7 @@ async function doRegister() {
 
   if(!id || !pw) { errEl.textContent='아이디와 비밀번호를 입력해주세요'; errEl.style.display='block'; return; }
   if(!/^[a-zA-Z0-9_]+$/.test(id)) { errEl.textContent='아이디는 영문/숫자/밑줄만 사용 가능합니다'; errEl.style.display='block'; return; }
-  if(pw.length < 6) { errEl.textContent='비밀번호는 6자 이상이어야 합니다'; errEl.style.display='block'; return; }
+  if(pw.length < 1) { errEl.textContent='비밀번호를 입력해주세요'; errEl.style.display='block'; return; }
   if(pw !== pw2) { errEl.textContent='비밀번호가 일치하지 않습니다'; errEl.style.display='block'; return; }
 
   btn.textContent = '처리 중...'; btn.disabled = true;
@@ -2432,6 +2440,97 @@ async function doRegister() {
     errEl.textContent = '오류가 발생했어요. 다시 시도해주세요'; errEl.style.display='block';
   }
   btn.textContent = '계정 만들기'; btn.disabled = false;
+}
+
+// ═══════════════════════════════════════════════
+// 마스터 계정 (skw) 전용 기능
+// ═══════════════════════════════════════════════
+const MASTER_ID = 'skw';
+
+function isMaster() { return USER_ID === MASTER_ID; }
+
+async function showMasterPanel() {
+  if(!isMaster()) return;
+  showLoading('계정 목록 불러오는 중...');
+  let accounts = [];
+  try {
+    const snap = await db.collection('accounts').get();
+    snap.forEach(doc => accounts.push({id: doc.id, ...doc.data()}));
+  } catch(e) { hideLoading(); showToast('⚠️ 계정 목록 로드 실패'); return; }
+  hideLoading();
+
+  // 마스터 패널 모달 생성
+  let existing = document.getElementById('masterModal');
+  if(existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'masterModal';
+  modal.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9990;
+    display:flex;align-items:flex-end;justify-content:center`;
+
+  const rows = accounts.map(a => `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;
+      border-bottom:1px solid #f0f0f0">
+      <div style="flex:1;font-size:0.9rem;font-weight:500;color:#2C4A6E">${a.id}
+        ${a.id===MASTER_ID ? '<span style="font-size:0.65rem;background:#2C4A6E;color:white;padding:2px 6px;border-radius:99px;margin-left:4px">마스터</span>' : ''}
+      </div>
+      <div style="font-size:0.7rem;color:#9ca3af">${a.createdAt ? a.createdAt.slice(0,10) : '-'}</div>
+      ${a.id !== MASTER_ID ? `
+        <button onclick="masterResetPw('${a.id}')"
+          style="padding:5px 10px;border-radius:6px;border:1.5px solid #f59e0b;
+          background:#fef3c7;color:#92400e;font-size:0.72rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif">
+          비번초기화
+        </button>
+        <button onclick="masterDeleteAccount('${a.id}')"
+          style="padding:5px 10px;border-radius:6px;border:1.5px solid #fca5a5;
+          background:#fef2f2;color:#dc2626;font-size:0.72rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif">
+          삭제
+        </button>` : ''}
+    </div>
+  `).join('');
+
+  modal.innerHTML = `
+    <div style="background:white;border-radius:20px 20px 0 0;padding:24px 20px 36px;
+      width:100%;max-width:600px;max-height:80vh;overflow-y:auto">
+      <div style="width:36px;height:4px;background:#e5e7eb;border-radius:99px;margin:0 auto 20px"></div>
+      <div style="font-family:'Noto Serif KR',serif;font-size:1.05rem;font-weight:600;
+        color:#2C4A6E;margin-bottom:4px">🔐 마스터 관리 패널</div>
+      <div style="font-size:0.72rem;color:#9ca3af;margin-bottom:16px">총 ${accounts.length}개 계정</div>
+      <div>${rows}</div>
+      <button onclick="document.getElementById('masterModal').remove()"
+        style="width:100%;margin-top:18px;padding:13px;border-radius:10px;
+        border:1.5px solid #e5e7eb;background:white;font-family:'Noto Sans KR',sans-serif;
+        font-size:0.9rem;color:#6b7280;cursor:pointer">닫기</button>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+}
+
+async function masterResetPw(targetId) {
+  const newPw = prompt(`[${targetId}] 새 비밀번호를 입력하세요:`);
+  if(!newPw) return;
+  try {
+    const pwHash = await sha256(newPw);
+    await db.collection('accounts').doc(targetId).update({pwHash});
+    showToast(`✅ [${targetId}] 비밀번호가 초기화되었어요`);
+  } catch(e) { showToast('⚠️ 초기화 실패'); }
+}
+
+async function masterDeleteAccount(targetId) {
+  if(!confirm(`[${targetId}] 계정을 삭제하시겠습니까?
+해당 계정의 읽기 데이터도 모두 삭제됩니다.`)) return;
+  try {
+    showLoading('삭제 중...');
+    await db.collection('accounts').doc(targetId).delete();
+    // 해당 유저 데이터도 삭제
+    const cols = ['chapters','plan','rangeHistory'];
+    for(const col of cols) {
+      try { await db.collection('users').doc(targetId).collection('data').doc(col).delete(); } catch(e){}
+    }
+    hideLoading();
+    showToast(`🗑️ [${targetId}] 계정이 삭제되었어요`);
+    showMasterPanel(); // 목록 새로고침
+  } catch(e) { hideLoading(); showToast('⚠️ 삭제 실패'); }
 }
 
 function doLogout() {
